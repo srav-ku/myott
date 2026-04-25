@@ -20,6 +20,10 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Extractor Worker"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -31,6 +35,18 @@ waitForPort = 3000
 
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow]]
+name = "Extractor Worker"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/extractor run dev"
+waitForPort = 8787
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -52,7 +68,13 @@ externalPort = 8080
 localPort = 8081
 externalPort = 80
 
+[[ports]]
+localPort = 8787
+externalPort = 3002
+
 [userenv]
 
 [userenv.shared]
 TMDB_API_KEY = "5701acdc0ce0fd37222a3c46fa2ac9aa"
+EXTRACTOR_URL = "http://localhost:8787"
+EXTRACT_TTL_SECONDS = "21600"

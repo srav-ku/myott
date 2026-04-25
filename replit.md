@@ -65,6 +65,19 @@ All routes return `{ ok: true, data: ... }` or `{ ok: false, error, details? }` 
 - ✅ Phase 1 — foundation (Next.js + Drizzle + D1/libSQL wiring)
 - ✅ Phase 2 — schema (10 tables with all constraints)
 - ✅ Phase 3 — TMDB read APIs (movies/tv/search)
-- ⏳ Phase 4 — links + extractor worker (`/api/stream/[link_id]` + `workers/extractor`)
-- ⏳ Phase 5 — admin APIs (CRUD + CSV episode import)
-- ⏳ Phase 6 — user features (watchlist, history, reports) once Firebase auth is wired
+- ✅ Phase 4 — `GET /api/stream/[link_id]` + `workers/extractor` (passthrough + per-host registry)
+- ✅ Phase 5 — admin CRUD: links, episodes (single + CSV), movie/tv delete, reports, content-requests
+- ⏳ Phase 6 — user features (watchlist, history, public report POST) once Firebase auth is wired
+- ⏳ Phase 7 — frontend (Next.js pages + Firebase Google sign-in)
+
+## Admin guard
+
+`web/src/lib/admin.ts → requireAdmin(req)`:
+- If `ADMIN_EMAILS` env is empty → open mode (dev convenience).
+- If set → request must carry header `x-admin-email: <one-of-the-listed-emails>`.
+- Once Firebase auth is added, the frontend will verify the Google email server-side and forward it as that header.
+
+## Workflows
+
+- `Start application` → `pnpm --filter @workspace/web run dev` → port `3000`
+- `Extractor Worker` → `pnpm --filter @workspace/extractor run dev` (wrangler) → port `8787`
