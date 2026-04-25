@@ -39,13 +39,6 @@ CREATE TABLE `history` (
 CREATE UNIQUE INDEX `history_user_movie_unique` ON `history` (`user_id`,`movie_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `history_user_episode_unique` ON `history` (`user_id`,`episode_id`);--> statement-breakpoint
 CREATE INDEX `history_user_idx` ON `history` (`user_id`);--> statement-breakpoint
-CREATE TABLE `languages` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`code` text NOT NULL,
-	`name` text NOT NULL
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `languages_code_unique` ON `languages` (`code`);--> statement-breakpoint
 CREATE TABLE `links` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`movie_id` integer,

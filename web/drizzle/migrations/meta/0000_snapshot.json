@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d96f16d1-df51-401d-b810-86af8038195f",
+  "id": "fe60f369-f6f6-4911-9783-e4c7e008c284",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "content_requests": {
@@ -296,45 +296,6 @@
           "value": "((\"history\".\"movie_id\" IS NOT NULL AND \"history\".\"episode_id\" IS NULL) OR (\"history\".\"movie_id\" IS NULL AND \"history\".\"episode_id\" IS NOT NULL))"
         }
       }
-    },
-    "languages": {
-      "name": "languages",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "languages_code_unique": {
-          "name": "languages_code_unique",
-          "columns": [
-            "code"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
     },
     "links": {
       "name": "links",

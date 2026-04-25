@@ -274,23 +274,6 @@ export const history = sqliteTable(
 );
 
 /* -------------------------------------------------------------------------- */
-/*                                  LANGUAGES                                 */
-/* -------------------------------------------------------------------------- */
-
-export const languages = sqliteTable(
-  'languages',
-  {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    /** ISO 639-1 code, e.g. "en", "hi", "te". */
-    code: text('code').notNull(),
-    name: text('name').notNull(),
-  },
-  (t) => ({
-    codeUniq: uniqueIndex('languages_code_unique').on(t.code),
-  }),
-);
-
-/* -------------------------------------------------------------------------- */
 /*                                   REPORTS                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -396,7 +379,6 @@ export const schema = {
   users,
   watchlist,
   history,
-  languages,
   reports,
   searchLogs,
   contentRequests,
