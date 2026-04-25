@@ -1,0 +1,97 @@
+// === Telegram Link Extractor Bot (Cloudflare Workers Native) ===
+
+// pattern to extract finalUrl
+const PATTERN = /const finalUrl\s*=\s*['"]([^'"]+)['"]/;
+
+// send message to telegram
+async function sendMessage(token, chatId, text) {
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: text,
+      disable_web_page_preview: true
+    })
+  });
+}
+
+// extract final link
+async function extractFinalUrl(pageUrl) {
+  try {
+    const res = await fetch(pageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      }
+    });
+
+    if (!res.ok) return null;
+
+    const html = await res.text();
+    const match = PATTERN.exec(html);
+
+    return match ? match[1].trim() : null;
+
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+export default {
+  async fetch(request, env) {
+
+    if (request.method !== "POST") {
+      return new Response("Bot running");
+    }
+
+    const update = await request.json();
+
+    if (!update.message) {
+      return new Response("ok");
+    }
+
+    const chatId = update.message.chat.id;
+    const text = update.message.text || "";
+
+    if (text === "/start") {
+      await sendMessage(env.BOT_TOKEN, chatId,
+        "Send player links and I will extract the final stream URLs.");
+      return new Response("ok");
+    }
+
+    const urls = [...text.matchAll(/https?:\/\/\S+/g)].map(m => m[0]);
+
+    if (urls.length === 0) {
+      await sendMessage(env.BOT_TOKEN, chatId,
+        "No valid links found.");
+      return new Response("ok");
+    }
+
+    await sendMessage(env.BOT_TOKEN, chatId,
+      `Extracting from ${urls.length} link(s)...`);
+
+    const results = [];
+
+    for (const url of urls) {
+      const final = await extractFinalUrl(url);
+      if (final) results.push(final);
+    }
+
+    if (results.length === 0) {
+      await sendMessage(env.BOT_TOKEN, chatId,
+        "No final URLs extracted.");
+      return new Response("ok");
+    }
+
+    let msg = `Extracted ${results.length} final link(s):\n\n`;
+
+    results.forEach((link, i) => {
+      msg += `${i + 1}. ${link}\n`;
+    });
+
+    await sendMessage(env.BOT_TOKEN, chatId, msg);
+
+    return new Response("ok");
+  }
+};
