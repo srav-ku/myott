@@ -1,0 +1,242 @@
+Here is a **clean, structured, comprehensive set of notes** compiled from the entire conversation. You can directly give this to any AI (or use it yourself) as the definitive reference for building your **OTT streaming backend + database**.
+
+---
+
+### **FINAL OTT STREAMING SYSTEM – COMPLETE ARCHITECTURE NOTES**
+
+#### **1. Core Philosophy & Design Decisions**
+- **Option A (Separate Tables)** – Chosen and locked.
+  - `movies` table → only movies
+  - `tv` table → only TV shows (series level)
+  - `episodes` table → linked to `tv` via `tv_id`
+  - Streams/links are **completely separate** from content.
+- **No unified `content` table** – avoids messy logic.
+- **Streams belong to either a movie OR an episode** (never both in one row).
+- **TV Shows workflow**:
+  - TV show saved in `tv` table.
+  - Seasons + Episodes saved in `episodes` table with `tv_id`.
+  - UI displays: TV → Seasons (grouped by `season_number`) → Episodes → Play.
+- **Rule locked**: Streams/links are **on movie level** and **on episode level** (NOT on TV show level).
+
+#### **2. Database Tables (Final Schema)**
+
+**Total Core Tables: 4 + Supporting Tables**
+
+##### **1. `movies`**
+```sql
+id                  INTEGER PRIMARY KEY AUTOINCREMENT
+tmdb_id             INTEGER NULL
+imdb_id             TEXT NULL
+
+title               TEXT NOT NULL
+overview            TEXT
+poster_path         TEXT
+backdrop_path       TEXT
+rating              REAL     -- rounded to 1 decimal place (e.g. 9.1)
+release_date        TEXT     -- YYYY-MM-DD
+release_year        INTEGER  -- extracted from release_date (important for manual entry)
+runtime             INTEGER  -- minutes
+
+genres              JSON     -- ["Action", "Drama", ...]  (for now; simple)
+
+created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+```
+
+##### **2. `tv`**
+```sql
+id                  INTEGER PRIMARY KEY AUTOINCREMENT
+tmdb_id             INTEGER NULL
+imdb_id             TEXT NULL
+
+name                TEXT NOT NULL
+overview            TEXT
+poster_path         TEXT
+backdrop_path       TEXT
+rating              REAL
+first_air_date      TEXT
+release_year        INTEGER
+
+number_of_seasons   INTEGER
+number_of_episodes  INTEGER
+
+genres              JSON     -- ["Action", "Drama", ...]
+
+created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+```
+
+##### **3. `episodes`**
+```sql
+id                  INTEGER PRIMARY KEY AUTOINCREMENT
+tv_id               INTEGER NOT NULL REFERENCES tv(id) ON DELETE CASCADE
+
+season_number       INTEGER NOT NULL
+episode_number      INTEGER NOT NULL
+
+title               TEXT
+overview            TEXT
+still_path          TEXT
+
+created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+
+-- Unique constraint recommended: UNIQUE(tv_id, season_number, episode_number)
+```
+
+##### **4. `links` (Most Important Table – Separate Table Chosen)**
+```sql
+id                  INTEGER PRIMARY KEY AUTOINCREMENT
+
+movie_id            INTEGER NULL REFERENCES movies(id) ON DELETE CASCADE
+episode_id          INTEGER NULL REFERENCES episodes(id) ON DELETE CASCADE
+
+quality             TEXT NOT NULL CHECK(quality IN ('720p', '1080p'))   -- strict
+type                TEXT NOT NULL CHECK(type IN ('direct', 'extract'))  -- strict
+
+url                 TEXT NOT NULL                    -- primary URL entered by admin
+extracted_url       TEXT NULL                        -- real stream URL after extraction
+expires_at          DATETIME NULL                    -- only for extracted links
+
+languages           JSON NOT NULL DEFAULT '[]'       -- e.g. ["en", "hi", "te", "ko"]
+
+created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+
+-- Constraints
+CHECK ((movie_id IS NOT NULL AND episode_id IS NULL) OR 
+       (movie_id IS NULL AND episode_id IS NOT NULL))
+UNIQUE(movie_id, quality)     -- one link per quality per movie
+UNIQUE(episode_id, quality)   -- one link per quality per episode
+```
+
+##### **Supporting Tables**
+
+**5. `languages` (for dynamic language management)**
+```sql
+id      INTEGER PRIMARY KEY AUTOINCREMENT
+code    TEXT UNIQUE NOT NULL   -- "en", "hi", "te", "ko"
+name    TEXT NOT NULL          -- "English", "Hindi", "Telugu", "Korean"
+```
+
+**6. `watchlist`**
+```sql
+id          INTEGER PRIMARY KEY AUTOINCREMENT
+user_id     TEXT NOT NULL      -- or INTEGER if using auth table
+content_type TEXT NOT NULL CHECK(content_type IN ('movie', 'tv'))
+content_id  INTEGER NOT NULL   -- movie.id or tv.id
+created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+
+UNIQUE(user_id, content_type, content_id)
+```
+
+**7. `users`** (basic – expand as needed)
+```sql
+id          TEXT PRIMARY KEY      -- or auto-increment
+-- email, name, etc. as per your auth system
+```
+
+**Optional but Recommended:**
+- `reports` table (for broken link reports)
+- `history` / `continue_watching` table
+- `content_requests` table
+
+#### **3. Streaming & Extraction Logic (Locked)**
+
+- **Only 2 qualities**: 720p and 1080p (one link per quality).
+- **Two types**:
+  - `direct` → play `url` directly.
+  - `extract` → `url` is embed/provider link → needs extraction.
+- **Extraction Flow**:
+  1. User requests play.
+  2. Backend checks `links` table.
+  3. If `type = direct` → return `url`.
+  4. If `type = extract`:
+     - If `extracted_url` exists **and** `expires_at > now` → return it.
+     - Else → call **existing Worker** to extract real stream URL.
+     - Save `extracted_url` + `expires_at = now + 6 hours`.
+     - Return the link.
+- **Extraction runs in your existing Worker** (do not rewrite in Next.js).
+- **Languages**: Stored per link (JSON array of codes). Different qualities can have different languages.
+
+#### **4. TMDB Integration & Caching**
+
+- **First time flow**:
+  - User searches → TMDB.
+  - User opens detail → fetch full data → **save selected fields to DB**.
+- **Subsequent requests** → serve from DB (source of truth).
+- **Recommendations & Cast**: Fetch from TMDB **on demand** with Next.js cache:
+  ```ts
+  fetch(url, { next: { revalidate: 86400 } }) // 24 hours
+  ```
+- **Manual entries**: `tmdb_id` can be NULL. Try searching TMDB by title for recommendations (fallback). If not found → no recommendations.
+- **What to store from TMDB** (only UI-needed fields):
+  - Movies: title, overview, poster_path, backdrop_path, vote_average (round to 1 decimal), release_date, release_year, runtime, genres (JSON).
+  - TV: similar + number_of_seasons, number_of_episodes.
+  - Episodes: title, overview, still_path, season/episode numbers.
+
+#### **5. Filtering**
+
+- **Language Filter**: Use `links.languages` → `WHERE languages LIKE '%"te"%'` or JSON functions. Use `DISTINCT` on content level so movie shows only once even if multiple links match.
+- **Genre Filter**: From `genres` JSON in movies/tv tables.
+- **Languages are dynamic**: Admin can add new languages via `languages` table. Frontend fetches list → shows checkboxes/multi-select.
+
+#### **6. Admin Panel Requirements**
+
+- **Strict values**:
+  - Quality: dropdown (`720p`, `1080p`)
+  - Type: dropdown (`direct`, `extract`)
+- **Languages input**: Multi-select checkboxes (fetched from `languages` table). Backend converts to JSON array.
+- **TV Series Admin**:
+  - Add/edit full season at once (list all episodes of a season).
+  - "Save All" in one API call (batch update).
+- **CSV Upload Support** for episodes + links (strict format).
+- **Manual Add**: Partial fields allowed (title required). Admin can fill as much as wanted.
+- **Link Management**: Add/edit links for movie or episode (one per quality).
+- **Report System**: Users report broken 720p/1080p links → form with movie name, issue type, optional description → visible to admin.
+
+#### **7. Subtitles Handling**
+
+- **External player** used → cannot inject subtitles.
+- **Solution**: On watch/player page, show optional **"Search Subtitles"** button.
+- Button opens external site (e.g. SubtitleCat / OpenSubtitles) with movie/TV name pre-filled.
+- Example: `https://www.subtitlecat.com/index.php?search=${movieName}`
+
+#### **8. Watchlist**
+
+- Simple mapping table: `user_id + content_type + content_id`.
+- Toggle (add/remove).
+- Display: Fetch watchlist items → join with movies or tv table for details.
+
+#### **9. Important Rules & Constraints**
+
+- Never store full TMDB JSON (only needed fields).
+- DB = source of truth for content + links.
+- TMDB = only for initial import + dynamic data (recommendations, cast).
+- NULL columns (e.g. `extracted_url` for direct links) are fine — D1 handles them efficiently.
+- One link per quality per content item (enforced by UNIQUE constraint).
+- Release year stored explicitly for easy filtering/display (especially manual entries).
+
+#### **10. Performance & Scalability Notes**
+
+- Links table rows are tiny (~500-800 bytes). Even thousands of entries = negligible space.
+- JOIN for links is simple and cheap.
+- Use caching aggressively for TMDB calls.
+- For language filtering: use `DISTINCT` + proper indexing.
+
+---
+
+**This document contains every decision finalized in the conversation.**
+
+You now have:
+- Complete table schemas
+- Exact field decisions
+- Streaming + extraction flow
+- Admin UX rules
+- Filtering logic
+- TMDB handling
+- All edge cases covered
+
+Use this as the **single source of truth** when instructing any AI (Claude, Cursor, etc.) to generate Drizzle schema, API routes, admin components, or SQL migrations.
+
+Would you like me to expand any section into full Drizzle ORM schema code or API endpoint specifications next?
