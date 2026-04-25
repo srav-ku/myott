@@ -1,0 +1,24 @@
+# Cloudflare Pages config for the OTT app.
+# Deployment: `pnpm --filter @workspace/web run pages:deploy`
+#
+# Before first deploy, create the D1 database:
+#   wrangler d1 create ott-db
+# Then paste the returned `database_id` below.
+
+name = "ott-app"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ott-db"
+database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+migrations_dir = "drizzle/migrations"
+
+[vars]
+# Set TMDB_API_KEY and EXTRACTOR_URL via:
+#   wrangler pages secret put TMDB_API_KEY
+#   wrangler pages secret put EXTRACTOR_URL
+# Do NOT commit real values here.
+NODE_ENV = "production"

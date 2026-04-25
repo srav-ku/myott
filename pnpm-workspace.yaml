@@ -36,8 +36,8 @@ minimumReleaseAgeExclude:
 
 packages:
   - artifacts/*
-  - lib/*
-  - lib/integrations/*
+  - web
+  - workers/*
   - scripts
 
 catalog:
@@ -72,6 +72,9 @@ onlyBuiltDependencies:
   - esbuild
   - msw
   - unrs-resolver
+  - better-sqlite3
+  - sharp
+  - workerd
 
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms

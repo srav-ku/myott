@@ -1,0 +1,38 @@
+{
+  "name": "@workspace/web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p ${PORT:-3000}",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
+    "typecheck": "tsc --noEmit",
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "pages:dev": "npm run pages:build && wrangler pages dev .vercel/output/static --d1=DB",
+    "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "tsx src/db/migrate-local.ts",
+    "db:migrate:remote": "wrangler d1 migrations apply ott-db --remote",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "next": "15.5.2",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "drizzle-orm": "catalog:",
+    "@libsql/client": "^0.15.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.12",
+    "@cloudflare/workers-types": "^4.20250109.0",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "drizzle-kit": "^0.31.0",
+    "tsx": "catalog:",
+    "typescript": "~5.9.2",
+    "wrangler": "^3.99.0"
+  }
+}

@@ -1,0 +1,193 @@
+✅ Overall verdict
+
+👉 Yes — this is a proper backend + DB plan
+👉 But there are 4 important corrections/improvements you must apply now
+
+🔥 1. PHASE 1 (Foundation) — ✅ GOOD
+
+Everything here is correct:
+
+Remove Express → ✔ correct
+Next.js + D1 → ✔ correct
+Drizzle (SQLite dialect) → ✔ correct
+Wrangler → ✔ correct
+
+👉 No change needed
+
+🔥 2. PHASE 2 (DB Schema) — ⚠️ SMALL BUT IMPORTANT FIXES
+
+You said:
+
+All 11 tables including languages
+
+❗ Problem: languages table
+
+👉 You DON’T need a languages table
+
+You already decided:
+
+links.languages = ["en", "hi", "te"]
+
+✔ That is enough
+✔ Easier for admin
+✔ Works for filtering
+
+✅ Fix:
+
+❌ Remove:
+
+languages table
+❗ Constraint correction
+
+You wrote:
+
+UNIQUE(movie_id, quality)
+UNIQUE(episode_id, quality)
+
+👉 This is correct and important
+✔ keeps only 1 link per quality
+
+❗ XOR constraint (important clarity)
+links:
+movie_id OR episode_id (not both)
+
+👉 Make sure:
+
+movie link → episode_id = NULL
+episode link → movie_id = NULL
+
+✔ This is critical for clean logic
+
+🔥 3. PHASE 3 (TMDB APIs) — ⚠️ ONE BIG FIX
+
+You wrote:
+
+DB-first, TMDB fallback + auto-save
+
+❗ Be careful here
+DO NOT auto-save everything blindly
+✅ Correct logic:
+User opens movie:
+
+1. Check DB
+2. If found → return DB
+3. If NOT found:
+   → fetch from TMDB
+   → RETURN to UI
+   → OPTIONAL: save only if needed
+Why?
+
+If you auto-save everything:
+
+❌ DB fills with junk
+❌ Many unused movies
+❌ waste space
+
+✅ Better rule:
+
+👉 Save ONLY when:
+
+admin adds
+or user interacts deeply (like opens detail page)
+🔥 4. PHASE 4 (Streaming + Worker) — ⚠️ CRITICAL DETAIL
+
+You wrote:
+
+cache 6h
+
+❗ Fix this logic properly
+Always check:
+if (expires_at > Date.now())
+
+NOT DB time
+
+❗ Add fallback flow (VERY IMPORTANT)
+
+Your plan missed this:
+
+✅ Correct streaming logic:
+1. If extracted exists and valid → use it
+
+2. Else:
+   → call worker
+   → save extracted + expiry
+
+3. If worker fails:
+   → fallback to primary url
+
+4. If both fail:
+   → return null
+
+👉 Without this → player breaks
+
+🔥 5. PHASE 5 (ADMIN APIs) — ⚠️ ONE IMPROVEMENT
+
+You wrote:
+
+bulk CSV episodes
+
+Add this clearly:
+
+✔ CSV should support:
+
+season_number,episode_number,title,primary_stream_url,quality,languages
+Also add:
+
+✔ “Save all at once” option for season
+✔ Don’t force required fields
+
+🔥 6. PHASE 6 (USER FEATURES) — ⚠️ PERFECT
+
+This is clean:
+
+✔ watchlist
+✔ history
+✔ reports
+✔ search logs
+
+👉 Nothing to change
+
+🔥 7. PHASE 7 (FILTERS) — ⚠️ SMALL CORRECTION
+
+You wrote:
+
+languages LIKE '%"te"%'
+
+👉 This works BUT:
+
+⚠️ Important:
+
+Return DISTINCT content
+
+Otherwise:
+
+❌ same movie appears multiple times
+(because multiple links)
+
+✅ Fix:
+SELECT DISTINCT movie_id
+🧠 FINAL CLEAN STRUCTURE
+Tables (FINAL)
+movies
+tv
+episodes
+links
+users
+watchlist
+history
+reports
+search_logs
+content_requests
+
+👉 total: 10 tables
+
+🚀 FINAL VERDICT
+
+👉 Your plan = 90% correct
+👉 After fixes = production-level clean
+
+🧭 WHAT YOU SHOULD DO NOW
+
+👉 Proceed with implementation
+
+You don’t need more planning.
