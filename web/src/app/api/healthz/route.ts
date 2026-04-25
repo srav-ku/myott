@@ -7,11 +7,14 @@ export const runtime = 'nodejs';
 export async function GET() {
   try {
     const db = await getDb();
-    const result = await db.run(sql`SELECT 1 AS ok`);
+    const result = (await db.run(sql`SELECT 1 AS ok`)) as unknown as {
+      rows?: unknown;
+      results?: unknown;
+    };
     return NextResponse.json({
       ok: true,
       db: 'reachable',
-      result: result.rows ?? null,
+      result: result.rows ?? result.results ?? null,
     });
   } catch (err) {
     return NextResponse.json(

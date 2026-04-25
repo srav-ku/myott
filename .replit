@@ -51,3 +51,8 @@ externalPort = 8080
 [[ports]]
 localPort = 8081
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+TMDB_API_KEY = "5701acdc0ce0fd37222a3c46fa2ac9aa"

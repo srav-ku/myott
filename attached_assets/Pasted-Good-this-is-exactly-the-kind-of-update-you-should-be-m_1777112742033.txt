@@ -1,0 +1,437 @@
+Good — this is exactly the kind of update you should be making.
+And this time, your corrections are **proper and aligned**.
+
+Let me validate what you wrote and point out **only the remaining hidden traps** (very few now).
+
+---
+
+# ✅ WHAT YOU FIXED (ALL CORRECT)
+
+### ✔ Removed `languages` table
+
+→ clean
+→ no overengineering
+
+---
+
+### ✔ Streaming fallback added
+
+→ **critical fix done**
+(no player break now)
+
+---
+
+### ✔ TMDB save only on detail open
+
+→ correct balance
+→ avoids DB junk
+
+---
+
+### ✔ CSV format defined
+
+→ good
+→ admin-friendly
+
+---
+
+### ✔ DISTINCT in filters
+
+→ prevents duplicate content
+→ correct
+
+---
+
+### ✔ XOR already enforced
+
+→ perfect
+
+---
+
+# 🔥 NOW ONLY 3 FINAL THINGS LEFT (IMPORTANT)
+
+These are small but **very important for stability**
+
+---
+
+# ⚠️ 1. Languages input (admin side)
+
+You said:
+
+```csv
+languages
+```
+
+---
+
+## ❗ Problem:
+
+Admin might enter:
+
+```
+telugu, hindi
+ENGLISH
+te,hi
+```
+
+👉 This will break filtering consistency
+
+---
+
+## ✅ Fix (IMPORTANT):
+
+### Always enforce:
+
+```ts
+languages = ["en", "hi", "te"]
+```
+
+---
+
+### So in backend:
+
+* convert input → lowercase
+* map full names → codes
+
+Example:
+
+```ts
+telugu → te
+hindi → hi
+english → en
+```
+
+---
+
+👉 This ensures:
+
+✔ filters work
+✔ no duplicates
+✔ clean DB
+
+---
+
+# ⚠️ 2. Quality enum (STRICT)
+
+You said:
+
+```
+quality = 1080p / 720p
+```
+
+---
+
+## ❗ Must enforce strictly:
+
+```ts
+type Quality = "1080p" | "720p"
+```
+
+---
+
+### Reject:
+
+❌ 1080
+❌ hd
+❌ fullhd
+
+---
+
+👉 Otherwise admin mistakes = broken UI
+
+---
+
+# ⚠️ 3. Links uniqueness edge case
+
+You already have:
+
+```sql
+UNIQUE(movie_id, quality)
+UNIQUE(episode_id, quality)
+```
+
+---
+
+## ❗ But also ensure:
+
+👉 NULL-safe uniqueness
+
+Because:
+
+* movie_id = NULL for episodes
+* episode_id = NULL for movies
+
+---
+
+## ✅ So logic must ensure:
+
+* if movie link → episode_id NULL
+* if episode link → movie_id NULL
+
+---
+
+👉 If not handled properly → duplicate rows possible
+
+---
+
+# 🧠 FINAL ARCHITECTURE (NOW PERFECT)
+
+```txt
+movies
+tv
+episodes
+links
+
+users
+watchlist
+history
+
+reports
+search_logs
+content_requests
+```
+
+---
+
+# 🔥 FINAL RESULT (VERY IMPORTANT)
+
+Now your system guarantees:
+
+✔ clean DB
+✔ no duplicate content
+✔ no duplicate links
+✔ stable streaming
+✔ consistent filtering
+✔ admin won’t break data
+
+
+
+
+
+This is clean. You’re basically production-ready on backend structure now. I’ll just tighten a few final things so you don’t hit subtle bugs later.
+
+---
+
+# ✅ Overall verdict
+
+👉 Your current plan = **correct and stable**
+👉 You can proceed to Phase 3
+
+---
+
+# 🔥 Small but important refinements
+
+## ⚠️ 1. `/api/search` logic (VERY IMPORTANT)
+
+Right now you said:
+
+> “Search with 0 hits creates content_requests row”
+
+---
+
+### ❗ Missing clarity:
+
+Search has **2 layers**
+
+### Correct flow:
+
+```txt
+1. User searches
+2. Check DB
+3. If found → return DB results
+4. If NOT found:
+   → call TMDB
+   → return TMDB results
+
+5. IF (DB empty AND TMDB empty):
+   → create content_requests
+```
+
+---
+
+### 👉 Why?
+
+If TMDB has results:
+
+❌ don’t create request
+(you can still show content)
+
+Only create request when:
+
+👉 **completely unavailable anywhere**
+
+---
+
+## ⚠️ 2. `/api/stream/[link_id]` (minor fix)
+
+You wrote:
+
+> return primary url with fallback: true
+
+---
+
+### Add this:
+
+```ts
+{
+  url: "...",
+  type: "direct" | "extract",
+  fallback: boolean
+}
+```
+
+---
+
+### Why?
+
+Frontend needs:
+
+* how to play
+* whether fallback happened
+
+---
+
+## ⚠️ 3. Expiry logic (IMPORTANT DETAIL)
+
+You wrote:
+
+```ts
+expires_at = now + EXTRACT_TTL_SECONDS
+```
+
+---
+
+### Make sure:
+
+```ts
+Date.now() + (TTL * 1000)
+```
+
+---
+
+### ❗ Common mistake:
+
+Using seconds instead of milliseconds
+
+---
+
+## ⚠️ 4. CSV languages format (good but normalize)
+
+You wrote:
+
+```txt
+en|hi|te
+```
+
+---
+
+### Ensure backend converts to:
+
+```js
+["en","hi","te"]
+```
+
+---
+
+### Also normalize:
+
+* lowercase
+* trim spaces
+
+---
+
+## ⚠️ 5. Missing: TMDB rate protection (important)
+
+When Phase 3 starts:
+
+---
+
+### Add this:
+
+```ts
+fetch(url, {
+  next: { revalidate: 3600 }
+})
+```
+
+---
+
+👉 This gives:
+
+* caching
+* avoids rate limit
+* better performance
+
+---
+
+## ⚠️ 6. One hidden bug you avoided (good)
+
+You used:
+
+```txt
+/api/stream/[link_id]
+```
+
+---
+
+👉 This is **correct design**
+
+Instead of:
+
+❌ `/api/links/[movie_id]`
+(which causes confusion)
+
+---
+
+# 🧠 Final architecture (locked)
+
+```txt
+Frontend (Next.js)
+
+→ /api/search
+→ /api/movies/[id]
+→ /api/tv/[id]
+→ /api/stream/[link_id]
+
+↓
+
+D1 Database (Drizzle)
+
+↓
+
+External:
+- TMDB (metadata)
+- Worker (extraction)
+```
+
+---
+
+# 🚀 What you should do now
+
+### 👉 Yes — proceed to Phase 3
+
+You don’t need to change anything major.
+
+---
+
+# 🧭 When TMDB key is added
+
+Make sure:
+
+* stored in `.env.local`
+* never exposed to client
+* used only in server routes
+
+---
+
+# 🔥 Final check (important mindset)
+
+You are now in:
+
+👉 **build phase, not design phase**
+
+Don’t redesign again unless something breaks.
+
+
+
+
