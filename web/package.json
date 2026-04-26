@@ -16,11 +16,15 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@libsql/client": "^0.15.0",
+    "@tailwindcss/postcss": "^4.2.4",
+    "drizzle-orm": "catalog:",
+    "hls.js": "^1.6.16",
+    "lucide-react": "catalog:",
     "next": "15.5.2",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "drizzle-orm": "catalog:",
-    "@libsql/client": "^0.15.0",
+    "tailwindcss": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

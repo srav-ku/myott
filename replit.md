@@ -67,8 +67,27 @@ All routes return `{ ok: true, data: ... }` or `{ ok: false, error, details? }` 
 - ✅ Phase 3 — TMDB read APIs (movies/tv/search)
 - ✅ Phase 4 — `GET /api/stream/[link_id]` + `workers/extractor` (passthrough + per-host registry)
 - ✅ Phase 5 — admin CRUD: links, episodes (single + CSV), movie/tv delete, reports, content-requests
-- ⏳ Phase 6 — user features (watchlist, history, public report POST) once Firebase auth is wired
-- ⏳ Phase 7 — frontend (Next.js pages + Firebase Google sign-in)
+- ✅ Phase 6 — user features (watchlist, history, public report POST + admin/me)
+- ✅ Phase 7 — frontend (browse / search / detail / watch / watchlist / history / admin)
+
+## Auth shim (Phase 7)
+
+Pending Firebase wire-up. The browser writes a JSON blob to `localStorage['ott:user']`
+(`{ email, displayName }`) via `AuthProvider`/`AuthModal`, and `lib/api.ts` injects
+`x-user-email`, `x-user-name`, and `x-admin-email` headers on every fetch. Server-side
+`requireUser`/`requireAdmin` accept these headers (open mode) so the whole app works
+end-to-end while we slot Firebase in later.
+
+## Frontend pages
+
+- `/` — trending/popular tabs with movie + TV rows
+- `/search` — TMDB-backed search across movies and TV
+- `/movies/[tmdbId]`, `/tv/[tmdbId]` — detail + season/episode picker
+- `/watch/movie/[id]`, `/watch/episode/[id]` — HLS player with quality switcher + report
+- `/watchlist`, `/history` — per-user lists (header-shim auth)
+- `/admin` — overview, reports queue, content requests
+- `/admin/manage`, `/admin/manage/movie/[tmdbId]`, `/admin/manage/tv/[tmdbId]` —
+  search TMDB → seed → manage links + episodes (single add + CSV bulk)
 
 ## Admin guard
 
