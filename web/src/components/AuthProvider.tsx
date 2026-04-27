@@ -8,13 +8,15 @@ import {
   type ReactNode,
 } from 'react';
 import { api, readStoredUser, writeStoredUser, type StoredUser } from '@/lib/api';
+import { auth as firebaseAuth } from '@/lib/firebase';
+import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 
 type AuthState = {
   user: StoredUser | null;
   isAdmin: boolean;
   adminMode: 'open' | 'restricted' | null;
-  signIn: (u: StoredUser) => Promise<void>;
-  signOut: () => void;
+  loading: boolean;
+  signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 };
 
@@ -24,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<StoredUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminMode, setAdminMode] = useState<'open' | 'restricted' | null>(null);
+  const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -41,27 +44,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (r.ok) {
       setIsAdmin(r.data.isAdmin);
       setAdminMode(r.data.adminMode);
+    } else if (r.status === 401) {
+      // Token probably expired or invalid
+      writeStoredUser(null);
+      setUser(null);
     }
   }, []);
 
   useEffect(() => {
     setHydrated(true);
-    void refresh();
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (fbUser) => {
+      if (fbUser) {
+        const token = await fbUser.getIdToken();
+        const u: StoredUser = {
+          uid: fbUser.uid,
+          email: fbUser.email || '',
+          displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+          token,
+        };
+        writeStoredUser(u);
+        await refresh();
+      } else {
+        writeStoredUser(null);
+        setUser(null);
+        setIsAdmin(false);
+        setAdminMode(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [refresh]);
 
-  const signIn = useCallback(
-    async (u: StoredUser) => {
-      writeStoredUser(u);
-      await refresh();
-    },
-    [refresh],
-  );
-
-  const signOut = useCallback(() => {
-    writeStoredUser(null);
-    setUser(null);
-    setIsAdmin(false);
-    setAdminMode(null);
+  const signOut = useCallback(async () => {
+    await firebaseSignOut(firebaseAuth);
   }, []);
 
   return (
@@ -70,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: hydrated ? user : null,
         isAdmin,
         adminMode,
-        signIn,
+        loading,
         signOut,
         refresh,
       }}

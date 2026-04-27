@@ -102,6 +102,7 @@ export const episodes = sqliteTable(
     title: text('title'),
     overview: text('overview'),
     stillPath: text('still_path'),
+    runtime: integer('runtime'),
 
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()

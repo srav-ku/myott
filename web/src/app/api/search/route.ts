@@ -10,7 +10,7 @@
  */
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { sql, like } from 'drizzle-orm';
+import { sql, like, eq } from 'drizzle-orm';
 import { ok, badRequest, serverError, parseQuery } from '@/lib/http';
 import { getDb } from '@/db/client';
 import { movies, tv, searchLogs, contentRequests } from '@/db/schema';
@@ -88,23 +88,33 @@ export async function GET(req: NextRequest) {
       console.error('[search] TMDB failed:', err);
     }
 
-    // 3) If completely empty → record content_request
-    const totalHits = dbMovies.length + dbShows.length + tmdbResults.length;
-    if (totalHits === 0 && qNorm.length >= 3) {
-      await db
-        .insert(contentRequests)
-        .values({ query: qNorm })
-        .onConflictDoUpdate({
-          target: contentRequests.query,
-          set: {
-            count: sql`${contentRequests.count} + 1`,
-            lastRequestedAt: sql`(unixepoch())`,
-          },
-        });
+    // 3) Throttle & Logging
+    // search_logs: check for existing query and last_searched_at
+    const THROTTLE_MS = 5 * 60 * 1000;
+    const canLog = qNorm.length >= 3;
+    let isThrottled = false;
+
+    if (canLog) {
+      const existingLog = await db
+        .select({ lastSearchedAt: searchLogs.lastSearchedAt })
+        .from(searchLogs)
+        .where(eq(searchLogs.query, qNorm))
+        .limit(1);
+
+      if (existingLog.length > 0 && existingLog[0].lastSearchedAt) {
+        const diff = Date.now() - existingLog[0].lastSearchedAt.getTime();
+        if (diff < THROTTLE_MS) {
+          isThrottled = true;
+        }
+      }
     }
 
-    // search_logs: bump for any query >= 3 chars
-    if (qNorm.length >= 3) {
+    // 4) If completely empty AND NOT throttled → search_logs handles general tracking.
+    // content_requests is now handled by a manual POST from the UI.
+    const totalHits = dbMovies.length + dbShows.length + tmdbResults.length;
+
+    // 5) Update search_logs if NOT throttled
+    if (canLog && !isThrottled) {
       await db
         .insert(searchLogs)
         .values({ query: qNorm })

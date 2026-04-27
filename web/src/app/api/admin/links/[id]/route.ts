@@ -40,7 +40,7 @@ export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const { id: raw } = await ctx.params;
   const id = parseId(raw);
@@ -78,7 +78,7 @@ export async function PATCH(
     return ok({ link: updated[0] });
   } catch (err) {
     if (isUniqueViolation(err)) {
-      return fail('Quality already exists for this movie/episode', 409);
+      return fail('Link for this quality already exists', 409);
     }
     return serverError(err);
   }
@@ -88,7 +88,7 @@ export async function DELETE(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const { id: raw } = await ctx.params;
   const id = parseId(raw);

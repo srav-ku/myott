@@ -14,7 +14,7 @@ export type ExtractResult = {
   type?: 'hls' | 'mp4' | 'webm' | 'mkv' | 'embed';
 };
 
-const DEFAULT_TIMEOUT_MS = 12_000;
+const DEFAULT_TIMEOUT_MS = 5_000;
 
 export async function callExtractor(
   url: string,

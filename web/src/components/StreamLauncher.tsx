@@ -14,7 +14,7 @@ type Props = {
   watchHrefBase: string; // e.g. '/watch/movie/27205' or '/watch/episode/123'
 };
 
-const QUALITY_ORDER = ['2160p', '1080p', '720p', '480p', '360p'];
+const QUALITY_ORDER = ['1080p', '720p'];
 
 export function StreamLauncher({ links, watchHrefBase }: Props) {
   if (links.length === 0) {

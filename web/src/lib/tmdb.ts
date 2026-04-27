@@ -147,5 +147,6 @@ export type TmdbSeasonDetail = {
     overview: string;
     still_path: string | null;
     air_date: string | null;
+    runtime: number | null;
   }>;
 };

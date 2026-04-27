@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { AdminGuard } from '@/components/AdminGuard';
-import { Film, Tv, Flag, MessageSquare, ArrowRight, Loader2, CheckCircle } from 'lucide-react';
+import { Film, Tv, Flag, MessageSquare, ArrowRight, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 type Report = {
   id: number;
@@ -23,8 +23,25 @@ type CR = {
   lastRequestedAt: number;
 };
 
+type AttentionData = {
+  movies: {
+    id: number;
+    tmdbId: number;
+    title: string;
+    poster_url: string;
+    releaseDate: string | null;
+  }[];
+  tv: {
+    id: number;
+    tmdbId: number;
+    name: string;
+    poster_url: string;
+    numberOfSeasons: number | null;
+  }[];
+};
+
 function Dashboard() {
-  const [tab, setTab] = useState<'overview' | 'reports' | 'requests'>('overview');
+  const [tab, setTab] = useState<'overview' | 'reports' | 'requests' | 'attention'>('overview');
   return (
     <div className="px-4 sm:px-6 space-y-6">
       <div>
@@ -49,37 +66,44 @@ function Dashboard() {
         />
         <NavCard
           href="#"
+          onClick={() => setTab('attention')}
+          icon={<AlertCircle size={22} />}
+          title="Needs Attention"
+          desc="Movies & TV missing streaming links."
+        />
+        <NavCard
+          href="#"
           onClick={() => setTab('reports')}
           icon={<Flag size={22} />}
           title="User Reports"
           desc="Review broken-stream reports."
         />
-        <NavCard
-          href="#"
-          onClick={() => setTab('requests')}
-          icon={<MessageSquare size={22} />}
-          title="Content Requests"
-          desc="Searches that returned nothing."
-        />
       </div>
 
-      <div className="border-b border-[var(--color-border)] flex gap-1">
-        {(['overview', 'reports', 'requests'] as const).map((t) => (
+      <div className="border-b border-[var(--color-border)] flex gap-1 overflow-x-auto no-scrollbar">
+        {(['overview', 'attention', 'reports', 'requests'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm border-b-2 ${
+            className={`px-4 py-2 text-sm border-b-2 whitespace-nowrap ${
               tab === t
                 ? 'border-[var(--color-brand)] text-white'
                 : 'border-transparent text-[var(--color-text-dim)] hover:text-white'
             }`}
           >
-            {t === 'overview' ? 'Overview' : t === 'reports' ? 'Reports' : 'Requests'}
+            {t === 'overview'
+              ? 'Overview'
+              : t === 'attention'
+                ? 'Needs Attention'
+                : t === 'reports'
+                  ? 'Reports'
+                  : 'Requests'}
           </button>
         ))}
       </div>
 
       {tab === 'overview' && <Overview />}
+      {tab === 'attention' && <AttentionTab />}
       {tab === 'reports' && <ReportsTab />}
       {tab === 'requests' && <RequestsTab />}
     </div>
@@ -154,6 +178,97 @@ function Overview() {
           rejected.
         </li>
       </ol>
+    </div>
+  );
+}
+
+function AttentionTab() {
+  const [data, setData] = useState<AttentionData | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const r = await api<AttentionData>('/api/admin/needs-attention');
+      if (r.ok) setData(r.data);
+    })();
+  }, []);
+
+  if (!data) return <Loader2 className="animate-spin" />;
+
+  return (
+    <div className="space-y-8 pb-12">
+      <section>
+        <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+          <Film size={20} className="text-[var(--color-brand)]" />
+          Movies without links ({data.movies.length})
+        </h3>
+        {data.movies.length === 0 ? (
+          <div className="text-sm text-[var(--color-text-dim)]">All movies have links!</div>
+        ) : (
+          <div className="grid gap-2">
+            {data.movies.map((m) => (
+              <Link
+                key={m.id}
+                href={`/admin/manage/movie/${m.tmdbId}`}
+                className="flex items-center gap-3 p-2 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] hover:border-white group"
+              >
+                <div className="w-10 h-14 bg-[var(--color-bg)] rounded overflow-hidden flex-shrink-0">
+                  {m.poster_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={m.poster_url} alt="" className="w-full h-full object-cover" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{m.title}</div>
+                  <div className="text-xs text-[var(--color-text-dim)]">
+                    TMDB #{m.tmdbId} {m.releaseDate && `· ${m.releaseDate.slice(0, 4)}`}
+                  </div>
+                </div>
+                <div className="text-xs font-medium text-[var(--color-brand)] opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity px-2">
+                  Add Links <ArrowRight size={14} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+          <Tv size={20} className="text-[var(--color-brand)]" />
+          TV Shows with missing links ({data.tv.length})
+        </h3>
+        {data.tv.length === 0 ? (
+          <div className="text-sm text-[var(--color-text-dim)]">
+            All episodes have links!
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            {data.tv.map((s) => (
+              <Link
+                key={s.id}
+                href={`/admin/manage/tv/${s.tmdbId}`}
+                className="flex items-center gap-3 p-2 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] hover:border-white group"
+              >
+                <div className="w-10 h-14 bg-[var(--color-bg)] rounded overflow-hidden flex-shrink-0">
+                  {s.poster_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.poster_url} alt="" className="w-full h-full object-cover" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{s.name}</div>
+                  <div className="text-xs text-[var(--color-text-dim)]">
+                    TMDB #{s.tmdbId} · {s.numberOfSeasons} Season
+                    {s.numberOfSeasons !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                <div className="text-xs font-medium text-[var(--color-brand)] opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity px-2">
+                  Add Links <ArrowRight size={14} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -262,7 +377,7 @@ function ReportsTab() {
 
 function RequestsTab() {
   const [items, setItems] = useState<CR[] | null>(null);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'added' | 'rejected'>(
+  const [filter, setFilter] = useState<'all' | 'pending' | 'added' | 'ignored'>(
     'pending',
   );
   async function load() {
@@ -286,7 +401,7 @@ function RequestsTab() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-1.5">
-        {(['all', 'pending', 'added', 'rejected'] as const).map((s) => (
+        {(['all', 'pending', 'added', 'ignored'] as const).map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
@@ -330,7 +445,7 @@ function RequestsTab() {
                   onChange={(e) => setStatus(r.id, e.target.value)}
                   className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1"
                 >
-                  {['pending', 'added', 'rejected'].map((s) => (
+                  {['pending', 'added', 'ignored'].map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>

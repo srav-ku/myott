@@ -15,7 +15,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'image.tmdb.org' },
     ],
   },
-  allowedDevOrigins: ['*.replit.dev', '*.repl.co', '*.worf.replit.dev', '*.kirk.replit.dev'],
+  allowedDevOrigins: ['localhost', '*.replit.dev', '*.repl.co', '*.worf.replit.dev', '*.kirk.replit.dev'],
 };
 
 export default nextConfig;

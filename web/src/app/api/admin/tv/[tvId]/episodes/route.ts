@@ -5,7 +5,7 @@
  */
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import {
   ok,
   fail,
@@ -16,7 +16,7 @@ import {
 } from '@/lib/http';
 import { requireAdmin } from '@/lib/admin';
 import { getDb } from '@/db/client';
-import { episodes, tv } from '@/db/schema';
+import { episodes, tv, links } from '@/db/schema';
 import { isUniqueViolation } from '@/lib/db-errors';
 
 export const runtime = 'nodejs';
@@ -29,7 +29,7 @@ export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ tvId: string }> },
 ) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const { tvId: raw } = await ctx.params;
   const tvId = Number(raw);
@@ -47,8 +47,22 @@ export async function GET(
             eq(episodes.seasonNumber, parsed.data.season),
           )
         : eq(episodes.tvId, tvId);
-    const rows = await db.select().from(episodes).where(where);
-    return ok({ episodes: rows });
+    
+    const epRows = await db.select().from(episodes).where(where);
+    if (epRows.length === 0) return ok({ episodes: [] });
+
+    const epIds = epRows.map((e) => e.id);
+    const linkRows = await db
+      .select()
+      .from(links)
+      .where(inArray(links.episodeId, epIds));
+
+    const grouped = epRows.map((ep) => ({
+      ...ep,
+      links: linkRows.filter((l) => l.episodeId === ep.id),
+    }));
+
+    return ok({ episodes: grouped });
   } catch (err) {
     return serverError(err);
   }
@@ -66,7 +80,7 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ tvId: string }> },
 ) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const { tvId: raw } = await ctx.params;
   const tvId = Number(raw);

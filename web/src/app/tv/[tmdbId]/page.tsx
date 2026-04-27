@@ -1,15 +1,38 @@
 'use client';
 import { useEffect, useState, use } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { WatchlistButton } from '@/components/WatchlistButton';
 import { ReportButton } from '@/components/ReportButton';
 import { Loader2, Star, Calendar, Play } from 'lucide-react';
+import Link from 'next/link';
+
+type EpisodeLink = {
+  id: number;
+  quality: string;
+  url: string;
+  type: string;
+  languages: string[];
+};
+
+type Episode = {
+  id: number;
+  episode_number: number;
+  title: string | null;
+  overview: string | null;
+  thumbnail_url: string | null;
+  runtime: number | null;
+  links: EpisodeLink[];
+};
+
+type Season = {
+  season_number: number;
+  episodes: Episode[];
+};
 
 type Tv = {
   id: number;
   tmdb_id: number;
-  name: string;
+  title: string;
   overview: string | null;
   poster_url: string | null;
   backdrop_url: string | null;
@@ -18,16 +41,7 @@ type Tv = {
   rating: number | null;
   number_of_seasons: number | null;
   genres: string[] | null;
-};
-
-type Episode = {
-  id: number;
-  tvId: number;
-  seasonNumber: number;
-  episodeNumber: number;
-  title: string | null;
-  overview: string | null;
-  stillPath: string | null;
+  seasons: Season[];
 };
 
 export default function TvPage({
@@ -37,9 +51,7 @@ export default function TvPage({
 }) {
   const { tmdbId } = use(params);
   const [show, setShow] = useState<Tv | null>(null);
-  const [seasons, setSeasons] = useState<number[]>([]);
-  const [activeSeason, setActiveSeason] = useState<number | null>(null);
-  const [allEpisodes, setAllEpisodes] = useState<Episode[] | null>(null);
+  const [activeSeasonNum, setActiveSeasonNum] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,19 +64,8 @@ export default function TvPage({
         return;
       }
       setShow(r.data);
-      const ep = await api<{ episodes: Episode[] }>(
-        `/api/admin/tv/${r.data.id}/episodes`,
-      );
-      if (!active) return;
-      if (ep.ok) {
-        setAllEpisodes(ep.data.episodes);
-        const ss = Array.from(
-          new Set(ep.data.episodes.map((e) => e.seasonNumber)),
-        ).sort((a, b) => a - b);
-        setSeasons(ss);
-        setActiveSeason(ss[0] ?? null);
-      } else {
-        setAllEpisodes([]);
+      if (r.data.seasons.length > 0) {
+        setActiveSeasonNum(r.data.seasons[0].season_number);
       }
     })();
     return () => {
@@ -83,12 +84,8 @@ export default function TvPage({
       </div>
     );
 
-  const episodes =
-    allEpisodes && activeSeason !== null
-      ? allEpisodes
-          .filter((e) => e.seasonNumber === activeSeason)
-          .sort((a, b) => a.episodeNumber - b.episodeNumber)
-      : null;
+  const activeSeason = show.seasons.find((s) => s.season_number === activeSeasonNum);
+  const episodes = activeSeason?.episodes ?? [];
 
   const year = show.release_year ?? (Number(show.first_air_date?.slice(0, 4)) || null);
 
@@ -112,13 +109,13 @@ export default function TvPage({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={show.poster_url}
-                alt={show.name}
+                alt={show.title}
                 className="w-full rounded-lg shadow-2xl border border-[var(--color-border)]"
               />
             </div>
           )}
           <div className="flex-1 space-y-4">
-            <h1 className="text-3xl sm:text-4xl font-bold">{show.name}</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold">{show.title}</h1>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--color-text-dim)]">
               {year && (
                 <span className="flex items-center gap-1">
@@ -151,7 +148,9 @@ export default function TvPage({
               </div>
             )}
             {show.overview && (
-              <p className="max-w-3xl leading-relaxed">{show.overview}</p>
+              <p className="max-w-3xl leading-relaxed text-[var(--color-text-dim)]">
+                {show.overview}
+              </p>
             )}
             <div className="flex flex-wrap gap-2 pt-2">
               <WatchlistButton kind="tv" contentId={show.id} />
@@ -162,40 +161,33 @@ export default function TvPage({
 
       <div className="px-4 sm:px-6 space-y-4">
         <h2 className="text-xl font-semibold">Episodes</h2>
-        {seasons.length === 0 ? (
+        {show.seasons.length === 0 ? (
           <div className="rounded-md border border-dashed border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-dim)]">
-            No episodes yet. An admin can import them via CSV.
+            No episodes available yet.
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap gap-1.5">
-              {seasons.map((s) => (
+            <div className="flex flex-wrap gap-1.5 overflow-x-auto no-scrollbar pb-1">
+              {show.seasons.map((s) => (
                 <button
-                  key={s}
-                  onClick={() => setActiveSeason(s)}
-                  className={`px-3 py-1.5 rounded-md text-sm ${
-                    s === activeSeason
+                  key={s.season_number}
+                  onClick={() => setActiveSeasonNum(s.season_number)}
+                  className={`px-4 py-2 rounded-md text-sm whitespace-nowrap transition-colors ${
+                    s.season_number === activeSeasonNum
                       ? 'bg-[var(--color-brand)] text-white'
                       : 'bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-white'
                   }`}
                 >
-                  Season {s}
+                  Season {s.season_number}
                 </button>
               ))}
             </div>
-            {!episodes ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-24 skeleton" />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {episodes.map((ep) => (
-                  <EpisodeRow key={ep.id} ep={ep} />
-                ))}
-              </div>
-            )}
+            
+            <div className="space-y-3 pb-20">
+              {episodes.map((ep) => (
+                <EpisodeRow key={ep.id} ep={ep} />
+              ))}
+            </div>
           </>
         )}
       </div>
@@ -204,39 +196,68 @@ export default function TvPage({
 }
 
 function EpisodeRow({ ep }: { ep: Episode }) {
-  const still = ep.stillPath
-    ? `https://image.tmdb.org/t/p/w300${ep.stillPath}`
-    : null;
+  const hasLinks = ep.links && ep.links.length > 0;
+
   return (
-    <div className="flex gap-3 p-3 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]">
-      <div className="w-32 h-20 sm:w-40 sm:h-24 flex-shrink-0 rounded overflow-hidden bg-[var(--color-bg)]">
-        {still ? (
+    <div className="flex flex-col sm:flex-row gap-4 p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] hover:border-[var(--color-border-hover)] transition-colors group">
+      <div className="w-full sm:w-64 aspect-video flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-bg)] border border-[var(--color-border)] relative shadow-lg">
+        {ep.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={still} alt="" className="w-full h-full object-cover" />
+          <img
+            src={ep.thumbnail_url}
+            alt=""
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
         ) : (
-          <div className="w-full h-full grid place-items-center text-xs text-[var(--color-text-dim)]">
-            S{ep.seasonNumber}E{ep.episodeNumber}
+          <div className="w-full h-full grid place-items-center text-xs text-[var(--color-text-dim)] bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-bg)]">
+            No Preview
+          </div>
+        )}
+        <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border border-white/10 text-white">
+          E{ep.episode_number}
+        </div>
+        {ep.runtime && (
+          <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-md rounded px-1.5 py-0.5 text-[10px] font-bold text-white">
+            {ep.runtime}m
           </div>
         )}
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm text-[var(--color-text-dim)]">
-          S{ep.seasonNumber} · E{ep.episodeNumber}
+
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        <div className="font-bold text-lg group-hover:text-[var(--color-brand)] transition-colors truncate flex items-center gap-2">
+          <span className="text-[var(--color-brand)] opacity-50 text-base font-mono">
+            {ep.episode_number.toString().padStart(2, '0')}
+          </span>
+          {ep.title ?? `Episode ${ep.episode_number}`}
         </div>
-        <div className="font-medium">{ep.title ?? `Episode ${ep.episodeNumber}`}</div>
         {ep.overview && (
-          <p className="text-xs text-[var(--color-text-dim)] line-clamp-2 mt-1">
+          <p className="text-sm text-[var(--color-text-dim)] line-clamp-2 mt-1 leading-relaxed">
             {ep.overview}
           </p>
         )}
-      </div>
-      <div className="self-center">
-        <Link
-          href={`/watch/episode/${ep.id}`}
-          className="inline-flex items-center gap-1.5 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] rounded-md px-3 py-1.5 text-sm font-medium"
-        >
-          <Play size={14} fill="white" /> Play
-        </Link>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {hasLinks ? (
+            <div className="flex gap-2">
+              {ep.links.map((link) => (
+                <Link
+                  key={link.id}
+                  href={`/watch/episode/${ep.id}?linkId=${link.id}`}
+                  className="inline-flex items-center gap-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white rounded-lg px-4 py-2 text-sm font-bold shadow-lg shadow-brand/20 transition-all active:scale-95"
+                >
+                  <Play size={14} fill="currentColor" />
+                  Watch {link.quality}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-text-dim)] text-xs font-medium">
+              <Loader2 size={12} className="animate-spin" />
+              Links coming soon
+            </div>
+          )}
+          <ReportButton contentType="episode" contentId={ep.id} />
+        </div>
       </div>
     </div>
   );

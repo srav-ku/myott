@@ -1,0 +1,16 @@
+{
+  "protocol": "http",
+  "mode": "local",
+  "port": 8787,
+  "host": "127.0.0.1",
+  "durableObjects": [],
+  "durableObjectsHost": "127.0.0.1",
+  "durableObjectsPort": 8787,
+  "entrypointAddresses": {
+    "default": {
+      "host": "127.0.0.1",
+      "port": 36843
+    }
+  },
+  "wranglerVersion": "3.114.17"
+}

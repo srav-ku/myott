@@ -1,0 +1,16 @@
+
+--- 2026-04-25T10:41:55.746Z debug
+🪵  Writing logs to "/home/runner/workspace/.config/.wrangler/logs/wrangler-2026-04-25_10-41-55_662.log"
+---
+
+--- 2026-04-25T10:41:55.746Z debug
+No experimental flag store instantiated
+---
+
+--- 2026-04-25T10:41:55.747Z debug
+Attempted to use flag "RESOURCES_PROVISION" which has not been instantiated
+---
+
+--- 2026-04-25T10:41:55.749Z debug
+.env file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---

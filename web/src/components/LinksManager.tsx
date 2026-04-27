@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { QUALITIES, type Quality } from '@/lib/quality';
 import { api } from '@/lib/api';
 import { Plus, Trash2, Loader2, Save, X, AlertCircle } from 'lucide-react';
 
@@ -7,15 +8,13 @@ type LinkRow = {
   id: number;
   movieId: number | null;
   episodeId: number | null;
-  quality: string;
+  quality: Quality;
   type: 'direct' | 'extract';
   url: string;
   extractedUrl: string | null;
   expiresAt: number | null;
   languages: string[] | null;
 };
-
-const QUALITIES = ['360p', '480p', '720p', '1080p', '2160p'];
 
 export function LinksManager({
   scope,
@@ -108,7 +107,7 @@ export function LinksManager({
 }
 
 type NewLink = {
-  quality: string;
+  quality: Quality;
   type: 'direct' | 'extract';
   url: string;
   languages: string[];

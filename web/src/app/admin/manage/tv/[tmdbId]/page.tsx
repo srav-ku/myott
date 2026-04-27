@@ -3,7 +3,6 @@ import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { AdminGuard } from '@/components/AdminGuard';
-import { LinksManager } from '@/components/LinksManager';
 import {
   ChevronLeft,
   Loader2,
@@ -12,6 +11,8 @@ import {
   Plus,
   AlertCircle,
   CheckCircle,
+  Save,
+  ExternalLink,
 } from 'lucide-react';
 
 type Tv = {
@@ -23,6 +24,15 @@ type Tv = {
   first_air_date: string | null;
   release_year: number | null;
 };
+
+type EpisodeLink = {
+  id?: number;
+  quality: string;
+  url: string;
+  type: 'direct' | 'extract';
+  languages: string[] | null;
+};
+
 type Episode = {
   id: number;
   tvId: number;
@@ -30,15 +40,16 @@ type Episode = {
   episodeNumber: number;
   title: string | null;
   overview: string | null;
+  links?: EpisodeLink[];
 };
 
 function Inner({ tmdbId }: { tmdbId: number }) {
   const [show, setShow] = useState<Tv | null>(null);
   const [episodes, setEpisodes] = useState<Episode[] | null>(null);
-  const [activeEpisode, setActiveEpisode] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [showCsv, setShowCsv] = useState(false);
   const [showAddEp, setShowAddEp] = useState(false);
+  const [activeSeason, setActiveSeason] = useState<number | null>(null);
 
   async function loadEpisodes(tvId: number) {
     const r = await api<{ episodes: Episode[] }>(`/api/admin/tv/${tvId}/episodes`);
@@ -48,6 +59,9 @@ function Inner({ tmdbId }: { tmdbId: number }) {
           a.seasonNumber - b.seasonNumber || a.episodeNumber - b.episodeNumber,
       );
       setEpisodes(sorted);
+      if (activeSeason === null && sorted.length > 0) {
+        setActiveSeason(sorted[0].seasonNumber);
+      }
     }
   }
 
@@ -69,14 +83,6 @@ function Inner({ tmdbId }: { tmdbId: number }) {
     else alert(r.error);
   }
 
-  async function deleteEp(id: number) {
-    if (!show) return;
-    if (!confirm('Delete this episode?')) return;
-    await api(`/api/admin/tv/${show.id}/episodes/${id}`, { method: 'DELETE' });
-    if (activeEpisode === id) setActiveEpisode(null);
-    void loadEpisodes(show.id);
-  }
-
   if (err)
     return <div className="px-6 py-12 text-center text-[var(--color-brand)]">{err}</div>;
   if (!show)
@@ -93,7 +99,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
     show.release_year ?? (Number(show.first_air_date?.slice(0, 4)) || null);
 
   return (
-    <div className="px-4 sm:px-6 space-y-6">
+    <div className="px-4 sm:px-6 space-y-6 pb-20">
       <Link
         href="/admin/manage?tab=tv"
         className="inline-flex items-center gap-1 text-sm text-[var(--color-text-dim)] hover:text-white"
@@ -165,68 +171,186 @@ function Inner({ tmdbId }: { tmdbId: number }) {
 
       <hr className="border-[var(--color-border)]" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h3 className="font-semibold mb-3">Episodes</h3>
+      <div className="space-y-6">
+        <div className="flex flex-wrap gap-1.5 overflow-x-auto no-scrollbar pb-1">
+          {seasons.map((s) => (
+            <button
+              key={s}
+              onClick={() => setActiveSeason(s)}
+              className={`px-4 py-2 rounded-md text-sm whitespace-nowrap ${
+                activeSeason === s
+                  ? 'bg-[var(--color-brand)] text-white'
+                  : 'bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-white'
+              }`}
+            >
+              Season {s}
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-4">
           {!episodes ? (
             <Loader2 className="animate-spin" />
           ) : episodes.length === 0 ? (
-            <div className="text-sm text-[var(--color-text-dim)] border border-dashed border-[var(--color-border)] rounded p-3">
-              No episodes. Add one above or paste CSV.
+            <div className="text-sm text-[var(--color-text-dim)] border border-dashed border-[var(--color-border)] rounded p-12 text-center">
+              No episodes. They should auto-fetch shortly or you can add manually.
             </div>
           ) : (
-            <div className="space-y-3">
-              {seasons.map((s) => (
-                <div key={s}>
-                  <div className="text-xs uppercase text-[var(--color-text-dim)] mb-1">
-                    Season {s}
-                  </div>
-                  <div className="space-y-1">
-                    {episodes
-                      .filter((e) => e.seasonNumber === s)
-                      .map((e) => (
-                        <div
-                          key={e.id}
-                          onClick={() => setActiveEpisode(e.id)}
-                          className={`w-full flex items-center gap-2 text-left p-2 rounded border cursor-pointer ${
-                            e.id === activeEpisode
-                              ? 'border-[var(--color-brand)] bg-[var(--color-brand)]/5'
-                              : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-white'
-                          }`}
-                        >
-                          <span className="text-xs text-[var(--color-text-dim)] w-12">
-                            E{e.episodeNumber}
-                          </span>
-                          <span className="flex-1 text-sm truncate">
-                            {e.title ?? `Episode ${e.episodeNumber}`}
-                          </span>
-                          <button
-                            onClick={(ev) => {
-                              ev.stopPropagation();
-                              deleteEp(e.id);
-                            }}
-                            className="text-[var(--color-text-dim)] hover:text-[var(--color-brand)]"
-                            title="Delete"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            episodes
+              .filter((e) => e.seasonNumber === activeSeason)
+              .map((e) => <EpisodeAdminCard key={e.id} episode={e} />)
           )}
         </div>
-        <div>
-          {activeEpisode ? (
-            <LinksManager scope={{ kind: 'episode', episodeId: activeEpisode }} />
+      </div>
+    </div>
+  );
+}
+
+function EpisodeAdminCard({ episode }: { episode: Episode }) {
+  const l1080 = episode.links?.find((l) => l.quality === '1080p');
+  const l720 = episode.links?.find((l) => l.quality === '720p');
+
+  const [url1080, setUrl1080] = useState(l1080?.url || '');
+  const [url720, setUrl720] = useState(l720?.url || '');
+  const [type1080, setType1080] = useState<'direct' | 'extract'>(
+    l1080?.type || 'extract',
+  );
+  const [type720, setType720] = useState<'direct' | 'extract'>(
+    l720?.type || 'extract',
+  );
+  const [langs, setLangs] = useState(
+    (l1080?.languages || l720?.languages || ['en']).join(', '),
+  );
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    const langArr = langs
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const r = await api(`/api/admin/episodes/${episode.id}/links`, {
+      method: 'POST',
+      body: JSON.stringify({
+        links: [
+          { quality: '1080p', url: url1080, type: type1080, languages: langArr },
+          { quality: '720p', url: url720, type: type720, languages: langArr },
+        ],
+      }),
+    });
+    setBusy(false);
+    if (r.ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } else {
+      alert(r.error);
+    }
+  }
+
+  return (
+    <div className="bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] overflow-hidden">
+      <div className="p-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/30 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-[var(--color-brand)] bg-[var(--color-brand)]/10 px-2 py-0.5 rounded uppercase">
+            E{episode.episodeNumber}
+          </span>
+          <span className="font-medium text-sm truncate">
+            {episode.title || `Episode ${episode.episodeNumber}`}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {episode.links && episode.links.length > 0 && (
+            <span className="text-[10px] text-green-400 uppercase font-bold">
+              Linked
+            </span>
+          )}
+          <button
+            onClick={() => {
+              if (confirm('Delete this episode?')) {
+                api(`/api/admin/tv/${episode.tvId}/episodes/${episode.id}`, {
+                  method: 'DELETE',
+                }).then(() => window.location.reload());
+              }
+            }}
+            className="text-[var(--color-text-dim)] hover:text-[var(--color-brand)] p-1"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+      <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_1fr_180px_auto] gap-4 items-end">
+        <div className="space-y-1">
+          <label className="text-[10px] uppercase font-bold text-[var(--color-text-dim)]">
+            1080p URL
+          </label>
+          <div className="flex gap-1">
+            <input
+              value={url1080}
+              onChange={(e) => setUrl1080(e.target.value)}
+              placeholder="https://..."
+              className="flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm outline-none focus:border-[var(--color-brand)]"
+            />
+            <select
+              value={type1080}
+              onChange={(e) => setType1080(e.target.value as any)}
+              className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded text-[10px] px-1"
+            >
+              <option value="extract">EXT</option>
+              <option value="direct">DIR</option>
+            </select>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] uppercase font-bold text-[var(--color-text-dim)]">
+            720p URL
+          </label>
+          <div className="flex gap-1">
+            <input
+              value={url720}
+              onChange={(e) => setUrl720(e.target.value)}
+              placeholder="https://..."
+              className="flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm outline-none focus:border-[var(--color-brand)]"
+            />
+            <select
+              value={type720}
+              onChange={(e) => setType720(e.target.value as any)}
+              className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded text-[10px] px-1"
+            >
+              <option value="extract">EXT</option>
+              <option value="direct">DIR</option>
+            </select>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] uppercase font-bold text-[var(--color-text-dim)]">
+            Languages
+          </label>
+          <input
+            value={langs}
+            onChange={(e) => setLangs(e.target.value)}
+            placeholder="en, hi, te"
+            className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm outline-none focus:border-[var(--color-brand)]"
+          />
+        </div>
+        <button
+          onClick={save}
+          disabled={busy}
+          className={`flex items-center gap-2 rounded px-4 py-2 text-sm font-bold transition-colors ${
+            saved
+              ? 'bg-green-600 text-white'
+              : 'bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white'
+          } disabled:opacity-50`}
+        >
+          {busy ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : saved ? (
+            <CheckCircle size={16} />
           ) : (
-            <div className="text-sm text-[var(--color-text-dim)] border border-dashed border-[var(--color-border)] rounded p-6 text-center">
-              Pick an episode on the left to manage its streams.
-            </div>
+            <Save size={16} />
           )}
-        </div>
+          {saved ? 'Saved' : 'Save'}
+        </button>
       </div>
     </div>
   );
@@ -245,7 +369,7 @@ function AddEpisodeForm({ tvId, onAdded }: { tvId: number; onAdded: () => void }
     setErr(null);
     const r = await api(`/api/admin/tv/${tvId}/episodes`, {
       method: 'POST',
-      body: JSON.stringify({ season_number: s, episode_number: e, title }),
+      body: JSON.stringify({ season_number: s, episode_number: e, title: title || null }),
     });
     setBusy(false);
     if (r.ok) {
@@ -282,11 +406,11 @@ function AddEpisodeForm({ tvId, onAdded }: { tvId: number; onAdded: () => void }
         />
       </label>
       <label className="block sm:col-span-1">
-        <span className="text-[10px] uppercase text-[var(--color-text-dim)]">Title</span>
+        <span className="text-[10px] uppercase text-[var(--color-text-dim)]">Title (Optional)</span>
         <input
-          required
           value={title}
           onChange={(ev) => setTitle(ev.target.value)}
+          placeholder="Defaults to TMDB title"
           className="mt-1 w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm"
         />
       </label>

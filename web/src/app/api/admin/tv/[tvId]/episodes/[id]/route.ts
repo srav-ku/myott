@@ -38,7 +38,7 @@ export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ tvId: string; id: string }> },
 ) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const ids = parseIds(await ctx.params);
   if (!ids) return fail('Invalid id', 400);
@@ -72,7 +72,7 @@ export async function DELETE(
   req: NextRequest,
   ctx: { params: Promise<{ tvId: string; id: string }> },
 ) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const ids = parseIds(await ctx.params);
   if (!ids) return fail('Invalid id', 400);

@@ -17,7 +17,7 @@ const QuerySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const url = new URL(req.url);
   const parsed = parseQuery(url, QuerySchema);

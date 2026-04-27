@@ -7,7 +7,7 @@ import { AuthModal } from './AuthModal';
 import { Search, User, LogOut, Bookmark, History, Shield, Film } from 'lucide-react';
 
 export function Header() {
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, signOut, loading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -30,6 +30,8 @@ export function Header() {
     if (!q.trim()) return;
     router.push(`/search?q=${encodeURIComponent(q.trim())}`);
   }
+
+  const userInitial = user ? (user.displayName || user.email || '?')[0] : '?';
 
   return (
     <>
@@ -98,23 +100,25 @@ export function Header() {
               />
             </div>
           </form>
-          {user ? (
+          {loading ? (
+             <div className="w-8 h-8 rounded-full bg-[var(--color-surface)] animate-pulse" />
+          ) : user ? (
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen((o) => !o)}
                 className="flex items-center gap-2 rounded-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] pl-2 pr-3 py-1.5"
               >
                 <div className="grid place-items-center w-7 h-7 rounded-full bg-[var(--color-brand)] text-white text-xs font-semibold uppercase">
-                  {(user.name || user.email)[0]}
+                  {userInitial}
                 </div>
                 <span className="hidden sm:inline text-sm">
-                  {user.name || user.email}
+                  {user.displayName || user.email}
                 </span>
               </button>
               {menuOpen && (
                 <div className="absolute right-0 mt-2 w-56 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl py-1 text-sm">
                   <div className="px-3 py-2 border-b border-[var(--color-border)]">
-                    <div className="font-medium truncate">{user.name || 'Signed in'}</div>
+                    <div className="font-medium truncate">{user.displayName || 'Signed in'}</div>
                     <div className="text-xs text-[var(--color-text-dim)] truncate">
                       {user.email}
                     </div>

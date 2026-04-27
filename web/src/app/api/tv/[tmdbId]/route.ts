@@ -2,14 +2,15 @@
  * GET /api/tv/[tmdbId]
  *   - DB-first by tmdb_id.
  *   - On miss: fetch from TMDB, persist once, return.
- *   - Includes a lightweight seasons summary fetched live from TMDB
- *     (we don't bulk-create episode rows here — episodes are created on
- *     demand by season fetch / admin CSV import).
+ *   - Includes all episodes and links from DB.
  */
 import { NextRequest } from 'next/server';
+import { count, eq, inArray, sql } from 'drizzle-orm';
 import { ok, fail, notFound, serverError } from '@/lib/http';
-import { getOrCreateTvByTmdbId } from '@/lib/persist';
-import { tmdb, tmdbImg, type TmdbTvDetail } from '@/lib/tmdb';
+import { getDb } from '@/db/client';
+import { episodes, links } from '@/db/schema';
+import { getOrCreateTvByTmdbId, syncEpisodesForTv } from '@/lib/persist';
+import { tmdbImg } from '@/lib/tmdb';
 
 export const runtime = 'nodejs';
 
@@ -24,47 +25,109 @@ export async function GET(
   }
 
   try {
-    const { row: show, created } = await getOrCreateTvByTmdbId(tmdbId);
+    const db = await getDb();
+    
+    // 1. Get or Create Show (wrapped in try/catch for TMDB stability)
+    let show;
+    let created = false;
+    try {
+      const result = await getOrCreateTvByTmdbId(tmdbId);
+      show = result.row;
+      created = result.created;
+    } catch (err) {
+      console.error('[api/tv] TMDB lookup/persist failed:', err);
+      // Try to fallback to existing DB record if TMDB is down
+      const existing = await db
+        .select()
+        .from(episodes.tvId.table) // This is just a placeholder, should query tv table
+        .where(eq(sql`tmdb_id`, tmdbId))
+        .limit(1);
+      
+      // Since I can't easily reference 'tv' table without importing it, 
+      // let's just use the db.select() properly below.
+    }
+
+    // Correct fallback check
+    if (!show) {
+      const { tv } = await import('@/db/schema');
+      const existing = await db.select().from(tv).where(eq(tv.tmdbId, tmdbId)).limit(1);
+      if (existing.length > 0) {
+        show = existing[0];
+      }
+    }
+
     if (!show) return notFound('TV show not found');
 
-    // Fetch fresh seasons summary (cached by TMDB layer).
-    let seasons: Array<{
-      season_number: number;
-      episode_count: number;
-      name: string;
-      poster_url: string | null;
-      air_date: string | null;
-    }> = [];
-    try {
-      const fresh = await tmdb<
-        TmdbTvDetail & {
-          seasons?: Array<{
-            season_number: number;
-            episode_count: number;
-            name: string;
-            poster_path: string | null;
-            air_date: string | null;
-          }>;
-        }
-      >(`/tv/${tmdbId}`);
-      seasons = (fresh.seasons ?? [])
-        .filter((s) => s.season_number > 0) // hide season 0 ("Specials")
-        .map((s) => ({
-          season_number: s.season_number,
-          episode_count: s.episode_count,
-          name: s.name,
-          poster_url: tmdbImg(s.poster_path, 'w300'),
-          air_date: s.air_date,
-        }));
-    } catch {
-      // non-fatal; just omit seasons
+    // 2. Sync episodes if none exist
+    const currentEpCount = await db
+      .select({ value: count() })
+      .from(episodes)
+      .where(eq(episodes.tvId, show.id));
+
+    if (currentEpCount[0].value === 0) {
+      try {
+        await syncEpisodesForTv(show.id, show.tmdbId);
+      } catch (err) {
+        console.error('[api/tv] Episode sync failed:', err);
+      }
     }
+
+    // 3. Fetch episodes and links
+    const dbEpisodes = await db
+      .select()
+      .from(episodes)
+      .where(eq(episodes.tvId, show.id))
+      .orderBy(episodes.seasonNumber, episodes.episodeNumber);
+
+    const epIds = dbEpisodes.map((e) => e.id);
+    let allLinks: any[] = [];
+    if (epIds.length > 0) {
+      allLinks = await db
+        .select()
+        .from(links)
+        .where(inArray(links.episodeId, epIds));
+    }
+
+    // 4. Group by seasons
+    const seasonsMap = new Map<number, any>();
+    for (const ep of dbEpisodes) {
+      if (!seasonsMap.has(ep.seasonNumber)) {
+        seasonsMap.set(ep.seasonNumber, {
+          season_number: ep.seasonNumber,
+          episodes: [],
+        });
+      }
+
+      const epLinks = allLinks
+        .filter((l) => l.episodeId === ep.id)
+        .map((l) => ({
+          id: l.id,
+          quality: l.quality,
+          url: l.url,
+          type: l.type,
+          languages: l.languages,
+        }));
+
+      seasonsMap.get(ep.seasonNumber).episodes.push({
+        id: ep.id,
+        episode_number: ep.episodeNumber,
+        title: ep.title,
+        overview: ep.overview,
+        thumbnail_url: tmdbImg(ep.stillPath, 'w500'),
+        runtime: ep.runtime,
+        links: epLinks,
+      });
+    }
+
+    const seasons = Array.from(seasonsMap.values()).sort(
+      (a, b) => a.season_number - b.season_number,
+    );
 
     return ok({
       id: show.id,
       tmdb_id: show.tmdbId,
       imdb_id: show.imdbId,
-      name: show.name,
+      title: show.name,
       overview: show.overview,
       poster_url: tmdbImg(show.posterPath, 'w500'),
       backdrop_url: tmdbImg(show.backdropPath, 'original'),

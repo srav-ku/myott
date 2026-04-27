@@ -37,7 +37,7 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ tvId: string }> },
 ) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const { tvId: raw } = await ctx.params;
   const tvId = Number(raw);

@@ -1,18 +1,6 @@
-/**
- * GET /api/stream/[linkId]
- *
- * Resolves a link to a playable URL.
- * Response: { url, type: 'direct' | 'extract', fallback: boolean, expires_at? }
- *
- * Logic:
- *   1. type='direct' → return primary url as-is.
- *   2. type='extract' AND cache valid (extracted_url && expires_at > now) → return cached.
- *   3. else → call extractor worker; on success persist + return.
- *   4. else (worker fail/missing) → return primary url with fallback:true.
- */
-import { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { ok, fail, notFound, serverError } from '@/lib/http';
 import { getDb } from '@/db/client';
 import { links } from '@/db/schema';
 import { callExtractor } from '@/lib/extractor';
@@ -21,32 +9,66 @@ export const runtime = 'nodejs';
 
 const DEFAULT_TTL_SECONDS = 6 * 60 * 60;
 
+type StreamResponse = {
+  url: string | null;
+  type: 'embed' | 'file' | null;
+  error: string | null;
+};
+
 export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ linkId: string }> },
 ) {
-  const { linkId: raw } = await ctx.params;
-  const linkId = Number(raw);
-  if (!Number.isFinite(linkId) || linkId <= 0) {
-    return fail('Invalid linkId', 400);
-  }
-
   try {
+    const { linkId: raw } = await ctx.params;
+    const linkId = Number(raw);
+
+    if (!Number.isFinite(linkId) || linkId <= 0) {
+      return NextResponse.json<StreamResponse>({
+        url: null,
+        type: null,
+        error: 'INVALID_LINK_ID',
+      });
+    }
+
     const db = await getDb();
     const rows = await db
       .select()
       .from(links)
       .where(eq(links.id, linkId))
       .limit(1);
-    if (rows.length === 0) return notFound('Link not found');
+
+    if (rows.length === 0) {
+      return NextResponse.json<StreamResponse>({
+        url: null,
+        type: null,
+        error: 'LINK_NOT_FOUND',
+      });
+    }
+
     const link = rows[0];
+
+    // Case 3: No source URL
+    if (!link.url) {
+      return NextResponse.json<StreamResponse>({
+        url: null,
+        type: null,
+        error: 'NO_SOURCE',
+      });
+    }
+
+    // Map DB type to required response type
+    const getStreamType = (t?: string | null): 'embed' | 'file' => {
+      if (t === 'embed') return 'embed';
+      return 'file';
+    };
 
     // 1) Direct stream — return as-is
     if (link.type === 'direct') {
-      return ok({
+      return NextResponse.json<StreamResponse>({
         url: link.url,
-        type: 'direct' as const,
-        fallback: false,
+        type: 'file',
+        error: null,
       });
     }
 
@@ -57,16 +79,16 @@ export async function GET(
       link.expiresAt &&
       link.expiresAt.getTime() > nowMs
     ) {
-      return ok({
+      return NextResponse.json<StreamResponse>({
         url: link.extractedUrl,
-        type: 'extract' as const,
-        fallback: false,
-        expires_at: Math.floor(link.expiresAt.getTime() / 1000),
+        type: getStreamType(link.extractedUrl.includes('embed') ? 'embed' : 'file'),
+        error: null,
       });
     }
 
     // 3) Cache miss / expired — call worker
     const result = await callExtractor(link.url);
+
     if (result?.stream_url) {
       const ttlSeconds = Number(
         process.env.EXTRACT_TTL_SECONDS ?? DEFAULT_TTL_SECONDS,
@@ -74,6 +96,7 @@ export async function GET(
       const expiresAtSec =
         result.expires_at ?? Math.floor(nowMs / 1000) + ttlSeconds;
       const expiresAt = new Date(expiresAtSec * 1000);
+
       await db
         .update(links)
         .set({
@@ -82,21 +105,26 @@ export async function GET(
           updatedAt: new Date(),
         })
         .where(eq(links.id, linkId));
-      return ok({
+
+      return NextResponse.json<StreamResponse>({
         url: result.stream_url,
-        type: 'extract' as const,
-        fallback: false,
-        expires_at: expiresAtSec,
+        type: result.type === 'embed' ? 'embed' : 'file',
+        error: null,
       });
     }
 
-    // 4) Worker failed / missing → fallback to primary URL
-    return ok({
-      url: link.url,
-      type: 'extract' as const,
-      fallback: true,
+    // Case 2: Extraction failed (including worker fail/timeout)
+    return NextResponse.json<StreamResponse>({
+      url: null,
+      type: null,
+      error: 'EXTRACTION_FAILED',
     });
-  } catch (err) {
-    return serverError(err);
+  } catch {
+    // Catch-all for any unexpected errors to ensure API never crashes
+    return NextResponse.json<StreamResponse>({
+      url: null,
+      type: null,
+      error: 'INTERNAL_ERROR',
+    });
   }
 }

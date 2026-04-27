@@ -16,7 +16,12 @@ export type ApiResult<T> =
 
 const STORAGE_KEY = 'ott:user';
 
-export type StoredUser = { email: string; name: string };
+export type StoredUser = {
+  uid: string;
+  email: string;
+  displayName: string;
+  token: string;
+};
 
 export function readStoredUser(): StoredUser | null {
   if (typeof window === 'undefined') return null;
@@ -36,11 +41,9 @@ export function writeStoredUser(u: StoredUser | null) {
 
 function buildAuthHeaders(): HeadersInit {
   const u = readStoredUser();
-  if (!u) return {};
+  if (!u || !u.token) return {};
   return {
-    'x-user-email': u.email,
-    'x-admin-email': u.email,
-    ...(u.name ? { 'x-user-name': u.name } : {}),
+    Authorization: `Bearer ${u.token}`,
   };
 }
 

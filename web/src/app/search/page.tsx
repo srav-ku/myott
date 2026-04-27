@@ -3,16 +3,63 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { MediaCard } from '@/components/MediaCard';
+import { Check, Loader2, Send } from 'lucide-react';
 
 type SearchItem = {
-  kind: 'movie' | 'tv';
+  type: 'movie' | 'tv';
   tmdb_id: number;
   title: string;
-  poster_path?: string | null;
-  vote_average?: number | null;
-  release_year?: number | null;
-  first_air_year?: number | null;
+  poster_url?: string | null;
+  rating?: number | null;
+  release_date?: string | null;
+  in_db: boolean;
 };
+
+function RequestContentButton({ query }: { query: string }) {
+  const [status, setStatus] = useState<'idle' | 'busy' | 'done'>('idle');
+
+  async function handleRequest() {
+    if (query.length < 3) return;
+    setStatus('busy');
+    const r = await api('/api/content-requests', {
+      method: 'POST',
+      body: JSON.stringify({ query }),
+    });
+    if (r.ok) {
+      setStatus('done');
+    } else {
+      setStatus('idle');
+      alert(r.error || 'Failed to submit request');
+    }
+  }
+
+  if (query.length < 3) return null;
+
+  return (
+    <button
+      onClick={handleRequest}
+      disabled={status !== 'idle'}
+      className="flex items-center gap-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] disabled:bg-green-600 disabled:opacity-90 transition-colors rounded-full px-6 py-2.5 font-medium text-white shadow-lg shadow-brand/20"
+    >
+      {status === 'busy' ? (
+        <>
+          <Loader2 size={18} className="animate-spin" />
+          Sending...
+        </>
+      ) : status === 'done' ? (
+        <>
+          <Check size={18} />
+          Request submitted
+        </>
+      ) : (
+        <>
+          <Send size={18} />
+          Request this content
+        </>
+      )}
+    </button>
+  );
+}
 
 function SearchInner() {
   const sp = useSearchParams();
@@ -64,13 +111,25 @@ function SearchInner() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="text-[var(--color-text-dim)]">
-          No matches. (Your search has been logged — admins may add it later.)
+        <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[var(--color-border)] rounded-2xl bg-[var(--color-surface)]/30">
+          <div className="text-lg font-medium mb-1">No results found</div>
+          <p className="text-[var(--color-text-dim)] mb-6 max-w-xs">
+            We couldn&apos;t find anything matching &ldquo;{q}&rdquo;. Would you like to request it?
+          </p>
+          <RequestContentButton query={q} />
         </div>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
           {items.map((it) => (
-            <MediaCard key={`${it.kind}-${it.tmdb_id}`} {...it} />
+            <MediaCard
+              key={`${it.type}-${it.tmdb_id}`}
+              kind={it.type}
+              tmdb_id={it.tmdb_id}
+              title={it.title}
+              poster_url={it.poster_url}
+              rating={it.rating}
+              release_year={it.release_date ? parseInt(it.release_date) : undefined}
+            />
           ))}
         </div>
       )}

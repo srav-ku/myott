@@ -13,7 +13,8 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "types": ["@cloudflare/workers-types", "node"],
+    "types": ["node", "@cloudflare/workers-types"],
+    "typeRoots": ["node_modules/@types", "node_modules"],
     "plugins": [{ "name": "next" }],
     "baseUrl": ".",
     "paths": {

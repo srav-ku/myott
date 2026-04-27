@@ -34,7 +34,7 @@ const ListSchema = z
   );
 
 export async function GET(req: NextRequest) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const url = new URL(req.url);
   const parsed = parseQuery(url, ListSchema);
@@ -77,7 +77,7 @@ const CreateSchema = z
   );
 
 export async function POST(req: NextRequest) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const parsed = await parseJson(req, CreateSchema);
   if (!parsed.ok) return parsed.response;
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (isUniqueViolation(err)) {
       return fail(
-        'A link with this quality already exists for this movie/episode',
+        'Link for this quality already exists',
         409,
       );
     }

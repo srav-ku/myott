@@ -2,13 +2,14 @@
  * Helpers for persisting TMDB results into our DB on first lookup.
  * Used by the detail routes (DB-first; on miss → TMDB → save → return).
  */
-import { eq } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { getDb } from '@/db/client';
-import { movies, tv } from '@/db/schema';
+import { movies, tv, episodes } from '@/db/schema';
 import {
   tmdb,
   type TmdbMovieDetail,
   type TmdbTvDetail,
+  type TmdbSeasonDetail,
 } from '@/lib/tmdb';
 
 function yearFromDate(date?: string | null): number | null {
@@ -97,5 +98,66 @@ export async function getOrCreateTvByTmdbId(tmdbId: number) {
       .limit(1);
     return { row: again[0]!, created: false };
   }
-  return { row: inserted[0]!, created: true };
+
+  const row = inserted[0]!;
+  // Auto-sync episodes on first creation
+  void syncEpisodesForTv(row.id, row.tmdbId).catch(console.error);
+
+  return { row, created: true };
+}
+
+/**
+ * Fetches all seasons and episodes from TMDB and upserts them into our DB.
+ * Is idempotent.
+ */
+export async function syncEpisodesForTv(tvId: number, tmdbId: number) {
+  const db = await getDb();
+
+  // 1. Get seasons count from TMDB
+  const detail = await tmdb<TmdbTvDetail>(`/tv/${tmdbId}`);
+  const seasons = (detail.seasons ?? []).filter((s) => s.season_number > 0);
+
+  for (const s of seasons) {
+    try {
+      // 2. Fetch episodes for each season
+      const seasonDetail = await tmdb<TmdbSeasonDetail>(
+        `/tv/${tmdbId}/season/${s.season_number}`,
+      );
+      if (!seasonDetail.episodes) continue;
+
+      // 3. Upsert episodes
+      for (const ep of seasonDetail.episodes) {
+        await db
+          .insert(episodes)
+          .values({
+            tvId,
+            seasonNumber: ep.season_number,
+            episodeNumber: ep.episode_number,
+            title: ep.name ?? null,
+            overview: ep.overview ?? null,
+            stillPath: ep.still_path ?? null,
+            runtime: ep.runtime ?? null,
+          })
+          .onConflictDoUpdate({
+            target: [
+              episodes.tvId,
+              episodes.seasonNumber,
+              episodes.episodeNumber,
+            ],
+            set: {
+              title: ep.name ?? null,
+              overview: ep.overview ?? null,
+              stillPath: ep.still_path ?? null,
+              runtime: ep.runtime ?? null,
+              updatedAt: sql`(unixepoch())`,
+            },
+          });
+      }
+    } catch (err) {
+      console.error(
+        `[syncEpisodes] Failed S${s.season_number} for TMDB #${tmdbId}:`,
+        err,
+      );
+    }
+  }
 }
