@@ -398,6 +398,30 @@ export const contentRequests = sqliteTable(
 );
 
 /* -------------------------------------------------------------------------- */
+/*                                   UPDATES                                  */
+/* -------------------------------------------------------------------------- */
+
+export const UPDATE_TYPES = ['info', 'release', 'alert'] as const;
+export type UpdateType = (typeof UPDATE_TYPES)[number];
+
+export const updates = sqliteTable(
+  'updates',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    message: text('message').notNull(),
+    type: text('type', { enum: UPDATE_TYPES }).notNull().default('info'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+  },
+  (t) => ({
+    createdIdx: index('updates_created_idx').on(t.createdAt),
+    expiresIdx: index('updates_expires_idx').on(t.expiresAt),
+  }),
+);
+
+/* -------------------------------------------------------------------------- */
 /*                              SCHEMA EXPORTS                                */
 /* -------------------------------------------------------------------------- */
 
@@ -413,4 +437,5 @@ export const schema = {
   reports,
   searchLogs,
   contentRequests,
+  updates,
 };

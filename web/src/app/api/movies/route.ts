@@ -25,15 +25,11 @@ import { sql } from 'drizzle-orm';
 export const runtime = 'nodejs';
 
 const CATEGORIES = [
-  'popular',
-  'top_rated',
-  'now_playing',
-  'upcoming',
   'trending',
 ] as const;
 
 const QuerySchema = z.object({
-  category: z.enum(CATEGORIES).optional().default('popular'),
+  category: z.enum(CATEGORIES).optional().default('trending'),
   page: z.coerce.number().int().min(1).max(500).optional().default(1),
   genre: z.coerce.number().int().positive().optional(),
   year: z.coerce.number().int().min(1888).max(2100).optional(),

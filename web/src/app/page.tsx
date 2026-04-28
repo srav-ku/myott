@@ -2,6 +2,7 @@
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MediaRow } from '@/components/MediaRow';
+import { UpdatesSection } from '@/components/UpdatesSection';
 
 function HomeInner() {
   const sp = useSearchParams();
@@ -22,6 +23,8 @@ function HomeInner() {
           </p>
         </div>
       </section>
+
+      <UpdatesSection />
 
       <div className="px-4 sm:px-6">
         <div className="inline-flex rounded-md bg-[var(--color-surface)] border border-[var(--color-border)] p-1 text-sm">
@@ -48,11 +51,6 @@ function HomeInner() {
             endpoint="/api/movies?category=trending&limit=18"
             kind="movie"
           />
-          <MediaRow
-            title="Popular Movies"
-            endpoint="/api/movies?category=popular&limit=18"
-            kind="movie"
-          />
         </>
       )}
       {(tab === 'all' || tab === 'tv') && (
@@ -60,11 +58,6 @@ function HomeInner() {
           <MediaRow
             title="Trending TV"
             endpoint="/api/tv?category=trending&limit=18"
-            kind="tv"
-          />
-          <MediaRow
-            title="Popular TV"
-            endpoint="/api/tv?category=popular&limit=18"
             kind="tv"
           />
         </>
