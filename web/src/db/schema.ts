@@ -153,7 +153,7 @@ export const links = sqliteTable(
     /** Unix-seconds expiry for `extractedUrl`. */
     expiresAt: integer('expires_at', { mode: 'timestamp' }),
 
-    /** JSON array of language codes, e.g. ["en","hi","te"]. */
+    /** JSON array of full language names, e.g. ["English","Hindi","Telugu"]. */
     languages: text('languages', { mode: 'json' })
       .$type<string[]>()
       .notNull()
@@ -185,6 +185,15 @@ export const links = sqliteTable(
     episodeIdx: index('links_episode_idx').on(t.episodeId),
   }),
 );
+
+/* -------------------------------------------------------------------------- */
+/*                                  LANGUAGES                                 */
+/* -------------------------------------------------------------------------- */
+
+export const languages = sqliteTable('languages', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').unique().notNull(),
+});
 
 /* -------------------------------------------------------------------------- */
 /*                                    USERS                                   */
@@ -306,6 +315,12 @@ export const reports = sqliteTable(
   (t) => ({
     statusIdx: index('reports_status_idx').on(t.status),
     contentIdx: index('reports_content_idx').on(t.contentType, t.contentId),
+    uniqReport: uniqueIndex('reports_uniq_idx').on(
+      t.contentType,
+      t.contentId,
+      t.issueType,
+      t.status,
+    ),
   }),
 );
 
@@ -352,9 +367,19 @@ export const contentRequests = sqliteTable(
   'content_requests',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    query: text('query').notNull(),
+    query: text('query'),
+    tmdbId: integer('tmdb_id'),
+    contentType: text('content_type', { enum: ['movie', 'tv'] }),
+    title: text('title'),
+    reason: text(
+      'reason',
+      { enum: ['not_found', 'missing_links'] },
+    ).default('not_found'),
+
     count: integer('count').notNull().default(1),
-    status: text('status', { enum: REQUEST_STATUS }).notNull().default('pending'),
+    status: text('status', { enum: REQUEST_STATUS })
+      .notNull()
+      .default('pending'),
     lastRequestedAt: integer('last_requested_at', { mode: 'timestamp' })
       .notNull()
       .default(sql`(unixepoch())`),
@@ -364,6 +389,10 @@ export const contentRequests = sqliteTable(
   },
   (t) => ({
     queryUniq: uniqueIndex('content_requests_query_unique').on(t.query),
+    tmdbUniq: uniqueIndex('content_requests_tmdb_unique').on(
+      t.tmdbId,
+      t.contentType,
+    ),
     statusIdx: index('content_requests_status_idx').on(t.status),
   }),
 );
@@ -377,6 +406,7 @@ export const schema = {
   tv,
   episodes,
   links,
+  languages,
   users,
   watchlist,
   history,

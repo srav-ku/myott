@@ -45,17 +45,12 @@ function HomeInner() {
         <>
           <MediaRow
             title="Trending Movies"
-            endpoint="/api/movies?source=trending&limit=18"
+            endpoint="/api/movies?category=trending&limit=18"
             kind="movie"
           />
           <MediaRow
             title="Popular Movies"
-            endpoint="/api/movies?source=popular&limit=18"
-            kind="movie"
-          />
-          <MediaRow
-            title="Top Rated Movies"
-            endpoint="/api/movies?source=top_rated&limit=18"
+            endpoint="/api/movies?category=popular&limit=18"
             kind="movie"
           />
         </>
@@ -64,12 +59,12 @@ function HomeInner() {
         <>
           <MediaRow
             title="Trending TV"
-            endpoint="/api/tv?source=trending&limit=18"
+            endpoint="/api/tv?category=trending&limit=18"
             kind="tv"
           />
           <MediaRow
             title="Popular TV"
-            endpoint="/api/tv?source=popular&limit=18"
+            endpoint="/api/tv?category=popular&limit=18"
             kind="tv"
           />
         </>

@@ -4,7 +4,9 @@ import { api } from '@/lib/api';
 import { WatchlistButton } from '@/components/WatchlistButton';
 import { ReportButton } from '@/components/ReportButton';
 import { StreamLauncher } from '@/components/StreamLauncher';
+import { MissingLinksRequest } from '@/components/MissingLinksRequest';
 import { Loader2, Star, Calendar, Clock } from 'lucide-react';
+import Link from 'next/link'; // Import Link for navigation
 
 type LinkRow = {
   id: number;
@@ -117,15 +119,42 @@ export default function MoviePage({
               {movie.genres && movie.genres.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {movie.genres.map((g) => (
-                    <span
+                    <Link
                       key={g}
-                      className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)]"
+                      href={`/search?genre=${encodeURIComponent(g)}`}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-purple-900/30 border border-purple-500/30 text-purple-300 hover:bg-purple-900/50 transition-colors"
                     >
                       {g}
-                    </span>
+                    </Link>
                   ))}
                 </div>
               )}
+              {/* Aggregated Languages from Links */}
+              {(() => {
+                const allLangs = new Set<string>();
+                links.forEach((l) => {
+                  if (l.languages) l.languages.forEach((lang) => allLangs.add(lang));
+                });
+                if (allLangs.size === 0) return null;
+                return (
+                  <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--color-text-dim)] mr-1">
+                      Languages:
+                    </span>
+                    {Array.from(allLangs)
+                      .sort()
+                      .map((lang) => (
+                        <Link
+                          key={lang}
+                          href={`/search?lang=${encodeURIComponent(lang)}`}
+                          className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/30 border border-blue-500/30 text-blue-300 hover:bg-blue-900/50 transition-colors"
+                        >
+                          {lang}
+                        </Link>
+                      ))}
+                  </div>
+                );
+              })()}
             </div>
             {movie.overview && (
               <p className="text-[var(--color-text)] max-w-3xl leading-relaxed">
@@ -133,6 +162,15 @@ export default function MoviePage({
               </p>
             )}
             <StreamLauncher links={links} watchHrefBase={`/watch/movie/${movie.id}`} />
+            {links.length === 0 && (
+              <div className="pt-4 max-w-xl">
+                <MissingLinksRequest
+                  tmdbId={movie.tmdb_id}
+                  contentType="movie"
+                  title={movie.title}
+                />
+              </div>
+            )}
             <div className="flex flex-wrap gap-2 pt-2">
               <WatchlistButton kind="movie" contentId={movie.id} />
               <ReportButton contentType="movie" contentId={movie.id} />

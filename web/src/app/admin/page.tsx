@@ -3,24 +3,61 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { AdminGuard } from '@/components/AdminGuard';
-import { Film, Tv, Flag, MessageSquare, ArrowRight, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  Film,
+  Tv,
+  Flag,
+  MessageSquare,
+  ArrowRight,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  Zap,
+  TrendingUp,
+  Clock,
+} from 'lucide-react';
 
 type Report = {
   id: number;
-  contentType: string;
+  contentType: 'movie' | 'episode';
   contentId: number;
   issueType: string;
   message: string | null;
   status: string;
-  reportedBy: string | null;
   createdAt: number;
+  reportCount: number;
+  movieTitle?: string;
+  movieTmdbId?: number;
+  tvName?: string;
+  tvTmdbId?: number;
+  epTitle?: string;
+  epSeason?: number;
+  epNumber?: number;
+  epTvName?: string;
 };
 type CR = {
   id: number;
-  query: string;
+  query: string | null;
+  tmdbId: number | null;
+  contentType: 'movie' | 'tv' | null;
+  title: string | null;
+  reason: 'not_found' | 'missing_links';
   count: number;
   status: string;
   lastRequestedAt: number;
+};
+
+type Stats = {
+  moviesWithoutLinks: number;
+  tvMissingEpisodes: number;
+  pendingReports: number;
+  pendingRequests: number;
+};
+
+type StatsData = {
+  stats: Stats;
+  topReported: Report[];
+  topRequested: CR[];
 };
 
 type AttentionData = {
@@ -41,51 +78,179 @@ type AttentionData = {
 };
 
 function Dashboard() {
-  const [tab, setTab] = useState<'overview' | 'reports' | 'requests' | 'attention'>('overview');
+  const [tab, setTab] = useState<
+    'overview' | 'reports' | 'requests' | 'attention'
+  >('overview');
+  const [stats, setStats] = useState<StatsData | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const r = await api<StatsData>('/api/admin/stats');
+      if (r.ok) setStats(r.data);
+    })();
+  }, []);
+
   return (
-    <div className="px-4 sm:px-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Admin Panel</h1>
-        <p className="text-sm text-[var(--color-text-dim)]">
-          Manage streams, episodes, reports, and content requests.
-        </p>
+    <div className="px-4 sm:px-6 space-y-8 pb-12">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Admin Panel</h1>
+          <p className="text-sm text-[var(--color-text-dim)]">
+            Manage streams, episodes, reports, and content requests.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            href="/admin/manage"
+            className="bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-white px-4 py-2 rounded-lg text-sm font-medium transition-all"
+          >
+            Manage Content
+          </Link>
+        </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <NavCard
-          href="/admin/manage"
-          icon={<Film size={22} />}
-          title="Manage Movies"
-          desc="Pick any movie and add/remove streaming links."
-        />
-        <NavCard
-          href="/admin/manage?tab=tv"
-          icon={<Tv size={22} />}
-          title="Manage TV Shows"
-          desc="Edit seasons & episodes. Bulk import via CSV."
-        />
-        <NavCard
-          href="#"
-          onClick={() => setTab('attention')}
-          icon={<AlertCircle size={22} />}
-          title="Needs Attention"
-          desc="Movies & TV missing streaming links."
-        />
-        <NavCard
-          href="#"
+      {/* Stats Overview */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          label="Pending Reports"
+          value={stats?.stats.pendingReports ?? '..'}
+          icon={<Flag size={20} />}
+          color="text-red-400"
           onClick={() => setTab('reports')}
-          icon={<Flag size={22} />}
-          title="User Reports"
-          desc="Review broken-stream reports."
+        />
+        <StatsCard
+          label="Content Requests"
+          value={stats?.stats.pendingRequests ?? '..'}
+          icon={<MessageSquare size={20} />}
+          color="text-blue-400"
+          onClick={() => setTab('requests')}
+        />
+        <StatsCard
+          label="Movies Missing Links"
+          value={stats?.stats.moviesWithoutLinks ?? '..'}
+          icon={<Film size={20} />}
+          color="text-orange-400"
+          onClick={() => setTab('attention')}
+        />
+        <StatsCard
+          label="TV Missing Links"
+          value={stats?.stats.tvMissingEpisodes ?? '..'}
+          icon={<Tv size={20} />}
+          color="text-purple-400"
+          onClick={() => setTab('attention')}
         />
       </div>
+
+      {tab === 'overview' && stats && (
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Fix Now Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 font-bold text-lg text-red-400">
+              <Zap size={20} fill="currentColor" />
+              FIX NOW (Top Reported)
+            </div>
+            <div className="space-y-3">
+              {stats.topReported.length === 0 ? (
+                <div className="p-8 text-center bg-[var(--color-surface)] rounded-xl border border-dashed border-[var(--color-border)] text-[var(--color-text-dim)]">
+                  No pending reports!
+                </div>
+              ) : (
+                stats.topReported.map((r) => {
+                  const title =
+                    r.contentType === 'movie'
+                      ? r.movieTitle
+                      : `${r.epTvName} S${r.epSeason}E${r.epNumber}`;
+                  const manageHref =
+                    r.contentType === 'movie'
+                      ? `/admin/manage/movie/${r.movieTmdbId}`
+                      : `/admin/manage/tv/${r.tvTmdbId}`;
+
+                  return (
+                    <div
+                      key={`${r.contentType}-${r.contentId}`}
+                      className="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] flex items-center justify-between gap-4"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-bold truncate">{title}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <SeverityBadge count={r.count} />
+                          <span className="text-[10px] uppercase font-bold text-[var(--color-text-dim)]">
+                            {r.issueType.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </div>
+                      <Link
+                        href={manageHref}
+                        className="flex-shrink-0 bg-white text-black px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-200 transition-colors"
+                      >
+                        FIX
+                      </Link>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Add Next Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 font-bold text-lg text-blue-400">
+              <TrendingUp size={20} />
+              ADD NEXT (Top Requested)
+            </div>
+            <div className="space-y-3">
+              {stats.topRequested.length === 0 ? (
+                <div className="p-8 text-center bg-[var(--color-surface)] rounded-xl border border-dashed border-[var(--color-border)] text-[var(--color-text-dim)]">
+                  No active requests.
+                </div>
+              ) : (
+                stats.topRequested.map((r) => {
+                  const manageHref =
+                    r.tmdbId && r.contentType
+                      ? `/admin/manage/${r.contentType}/${r.tmdbId}`
+                      : null;
+
+                  return (
+                    <div
+                      key={r.id}
+                      className="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] flex items-center justify-between gap-4"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-bold truncate">
+                          {r.title || r.query}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-bold">
+                            {r.count} REQUESTS
+                          </span>
+                          <span className="text-[10px] uppercase font-bold text-[var(--color-text-dim)]">
+                            {r.contentType || 'Unknown'}
+                          </span>
+                        </div>
+                      </div>
+                      {manageHref && (
+                        <Link
+                          href={manageHref}
+                          className="flex-shrink-0 border border-[var(--color-border)] hover:border-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                        >
+                          MANAGE
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="border-b border-[var(--color-border)] flex gap-1 overflow-x-auto no-scrollbar">
         {(['overview', 'attention', 'reports', 'requests'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm border-b-2 whitespace-nowrap ${
+            className={`px-4 py-2 text-sm border-b-2 whitespace-nowrap transition-all ${
               tab === t
                 ? 'border-[var(--color-brand)] text-white'
                 : 'border-transparent text-[var(--color-text-dim)] hover:text-white'
@@ -107,6 +272,60 @@ function Dashboard() {
       {tab === 'reports' && <ReportsTab />}
       {tab === 'requests' && <RequestsTab />}
     </div>
+  );
+}
+
+function StatsCard({
+  label,
+  value,
+  icon,
+  color,
+  onClick,
+}: {
+  label: string;
+  value: number | string;
+  icon: React.ReactNode;
+  color: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-left hover:border-white transition-all group"
+    >
+      <div className={`${color} mb-2 group-hover:scale-110 transition-transform`}>
+        {icon}
+      </div>
+      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-[10px] uppercase font-bold text-[var(--color-text-dim)] tracking-wider mt-0.5">
+        {label}
+      </div>
+    </button>
+  );
+}
+
+function SeverityBadge({ count }: { count: number }) {
+  if (count >= 5) {
+    return (
+      <span className="flex items-center gap-1 text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded font-bold">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+        CRITICAL ({count})
+      </span>
+    );
+  }
+  if (count >= 2) {
+    return (
+      <span className="flex items-center gap-1 text-[10px] bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded font-bold">
+        <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+        MODERATE ({count})
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1 text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold">
+      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+      LOW ({count})
+    </span>
   );
 }
 
@@ -201,7 +420,9 @@ function AttentionTab() {
           Movies without links ({data.movies.length})
         </h3>
         {data.movies.length === 0 ? (
-          <div className="text-sm text-[var(--color-text-dim)]">All movies have links!</div>
+          <div className="text-sm text-[var(--color-text-dim)]">
+            All movies have links!
+          </div>
         ) : (
           <div className="grid gap-2">
             {data.movies.map((m) => (
@@ -213,13 +434,18 @@ function AttentionTab() {
                 <div className="w-10 h-14 bg-[var(--color-bg)] rounded overflow-hidden flex-shrink-0">
                   {m.poster_url && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={m.poster_url} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={m.poster_url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{m.title}</div>
                   <div className="text-xs text-[var(--color-text-dim)]">
-                    TMDB #{m.tmdbId} {m.releaseDate && `· ${m.releaseDate.slice(0, 4)}`}
+                    TMDB #{m.tmdbId}{' '}
+                    {m.releaseDate && `· ${m.releaseDate.slice(0, 4)}`}
                   </div>
                 </div>
                 <div className="text-xs font-medium text-[var(--color-brand)] opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity px-2">
@@ -251,7 +477,11 @@ function AttentionTab() {
                 <div className="w-10 h-14 bg-[var(--color-bg)] rounded overflow-hidden flex-shrink-0">
                   {s.poster_url && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={s.poster_url} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={s.poster_url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -279,7 +509,19 @@ function ReportsTab() {
   async function load() {
     const q = filter === 'all' ? '' : `?status=${filter}`;
     const r = await api<{ reports: Report[] }>(`/api/admin/reports${q}`);
-    if (r.ok) setItems(r.data.reports);
+    if (r.ok) {
+      // Deduplicate by content + issue since we have partitioned count
+      const seen = new Set<string>();
+      const deduped = r.data.reports.filter((row) => {
+        const key = `${row.contentType}-${row.contentId}-${row.issueType}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      // Sort by count desc
+      deduped.sort((a, b) => b.reportCount - a.reportCount);
+      setItems(deduped);
+    }
   }
   useEffect(() => {
     setItems(null);
@@ -318,57 +560,83 @@ function ReportsTab() {
           No reports.
         </div>
       ) : (
-        <div className="space-y-2">
-          {items.map((r) => (
-            <div
-              key={r.id}
-              className="p-3 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]"
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex-1">
-                  <div className="text-xs text-[var(--color-text-dim)]">
-                    #{r.id} · {r.contentType} #{r.contentId} ·{' '}
-                    {new Date(r.createdAt * 1000).toLocaleString()}
+        <div className="space-y-3">
+          {items.map((r) => {
+            const title =
+              r.contentType === 'movie'
+                ? r.movieTitle
+                : `${r.epTvName} S${r.epSeason}E${r.epNumber}`;
+            const manageHref =
+              r.contentType === 'movie'
+                ? `/admin/manage/movie/${r.movieTmdbId}`
+                : `/admin/manage/tv/${r.tvTmdbId}`;
+
+            return (
+              <div
+                key={r.id}
+                className="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] group"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-dim)] mb-1">
+                      <span
+                        className={
+                          r.contentType === 'movie'
+                            ? 'text-blue-400'
+                            : 'text-purple-400'
+                        }
+                      >
+                        {r.contentType}
+                      </span>
+                      <span>·</span>
+                      <span>
+                        {new Date(r.createdAt * 1000).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="font-bold text-lg truncate">
+                      {title || 'Unknown Title'}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <SeverityBadge count={r.reportCount} />
+                      <span className="text-xs bg-white/5 text-white px-2 py-0.5 rounded border border-white/10 uppercase font-bold text-[10px]">
+                        {r.issueType.replace('_', ' ')}
+                      </span>
+                    </div>
+                    {r.message && (
+                      <div className="text-sm text-[var(--color-text-dim)] mt-2 bg-black/20 p-2 rounded border border-white/5 italic">
+                        &ldquo;{r.message}&rdquo;
+                      </div>
+                    )}
                   </div>
-                  <div className="font-medium mt-0.5">{r.issueType.replace('_', ' ')}</div>
-                  {r.message && (
-                    <div className="text-sm text-[var(--color-text-dim)] mt-1">
-                      {r.message}
-                    </div>
-                  )}
-                  {r.reportedBy && (
-                    <div className="text-xs text-[var(--color-text-dim)] mt-1">
-                      Reported by: {r.reportedBy}
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-medium ${
-                      r.status === 'open'
-                        ? 'bg-yellow-900/40 text-yellow-300'
-                        : r.status === 'resolved'
-                          ? 'bg-green-900/40 text-green-300'
-                          : 'bg-gray-800 text-gray-300'
-                    }`}
-                  >
-                    {r.status}
-                  </span>
-                  <select
-                    value={r.status}
-                    onChange={(e) => setStatus(r.id, e.target.value)}
-                    className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-1 py-0.5"
-                  >
-                    {['open', 'resolved'].map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex flex-col gap-2 items-end">
+                    <select
+                      value={r.status}
+                      onChange={(e) => setStatus(r.id, e.target.value)}
+                      className={`text-xs border rounded-lg px-2 py-1.5 outline-none font-bold ${
+                        r.status === 'open'
+                          ? 'bg-yellow-900/40 text-yellow-200 border-yellow-500/30'
+                          : 'bg-green-900/40 text-green-200 border-green-500/30'
+                      }`}
+                    >
+                      {['open', 'resolved'].map((s) => (
+                        <option key={s} value={s}>
+                          {s.toUpperCase()}
+                        </option>
+                      ))}
+                    </select>
+                    {manageHref && (
+                      <Link
+                        href={manageHref}
+                        className="flex items-center gap-1.5 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg shadow-brand/20"
+                      >
+                        FIX LINK <ArrowRight size={14} />
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -383,7 +651,11 @@ function RequestsTab() {
   async function load() {
     const q = filter === 'all' ? '' : `?status=${filter}`;
     const r = await api<{ requests: CR[] }>(`/api/admin/content-requests${q}`);
-    if (r.ok) setItems(r.data.requests);
+    if (r.ok) {
+      // Sort by count desc
+      const sorted = [...r.data.requests].sort((a, b) => b.count - a.count);
+      setItems(sorted);
+    }
   }
   useEffect(() => {
     setItems(null);
@@ -422,38 +694,75 @@ function RequestsTab() {
           No requests.
         </div>
       ) : (
-        <div className="space-y-2">
-          {items.map((r) => (
-            <div
-              key={r.id}
-              className="flex items-center gap-3 p-3 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]"
-            >
-              <div className="flex-1">
-                <div className="font-medium">{r.query}</div>
-                <div className="text-xs text-[var(--color-text-dim)]">
-                  {r.count} request{r.count !== 1 ? 's' : ''} · last{' '}
-                  {new Date(r.lastRequestedAt * 1000).toLocaleString()}
+        <div className="space-y-3">
+          {items.map((r) => {
+            const manageHref =
+              r.tmdbId && r.contentType
+                ? `/admin/manage/${r.contentType}/${r.tmdbId}`
+                : null;
+
+            return (
+              <div
+                key={r.id}
+                className="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] group"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="font-bold text-lg truncate">
+                      {r.title || r.query}
+                    </div>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border ${
+                        r.reason === 'missing_links'
+                          ? 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                          : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                      }`}
+                    >
+                      {r.reason === 'missing_links'
+                        ? 'Missing Links'
+                        : 'Not Found'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-[var(--color-text-dim)] flex items-center gap-2">
+                    <span className="bg-white/5 px-1.5 py-0.5 rounded text-white font-bold">
+                      {r.count}x
+                    </span>
+                    <span>·</span>
+                    <span>TMDB #{r.tmdbId || 'N/A'}</span>
+                    <span>·</span>
+                    <span className="capitalize">
+                      {r.contentType || 'unknown'}
+                    </span>
+                    <span>·</span>
+                    <span>
+                      {new Date(r.lastRequestedAt * 1000).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={r.status}
+                    onChange={(e) => setStatus(r.id, e.target.value)}
+                    className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 font-bold"
+                  >
+                    {['pending', 'added', 'ignored'].map((s) => (
+                      <option key={s} value={s}>
+                        {s.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                  {manageHref && (
+                    <Link
+                      href={manageHref}
+                      className="flex items-center gap-1.5 border border-[var(--color-border)] hover:border-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                    >
+                      MANAGE
+                    </Link>
+                  )}
                 </div>
               </div>
-              {r.status === 'added' ? (
-                <span className="inline-flex items-center gap-1 text-xs text-green-400">
-                  <CheckCircle size={14} /> Added
-                </span>
-              ) : (
-                <select
-                  value={r.status}
-                  onChange={(e) => setStatus(r.id, e.target.value)}
-                  className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1"
-                >
-                  {['pending', 'added', 'ignored'].map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

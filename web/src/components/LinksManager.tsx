@@ -25,24 +25,33 @@ export function LinksManager({
   const [showAdd, setShowAdd] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+  const [addingLanguage, setAddingLanguage] = useState(false);
 
   const queryKey =
     scope.kind === 'movie' ? `movie_id=${scope.movieId}` : `episode_id=${scope.episodeId}`;
 
-  async function load() {
+  async function loadLinks() {
     setError(null);
     const r = await api<{ links: LinkRow[] }>(`/api/admin/links?${queryKey}`);
     if (r.ok) setItems(r.data.links);
     else setError(r.error);
   }
 
+  async function loadLanguages() {
+    const r = await api<{ languages: string[] }>('/api/admin/languages');
+    if (r.ok) setAvailableLanguages(r.data.languages);
+    else console.error('Failed to load languages:', r.error);
+  }
+
   useEffect(() => {
     setItems(null);
-    void load();
+    void loadLinks();
+    void loadLanguages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryKey]);
 
-  async function add(form: NewLink) {
+  async function addLink(form: NewLink) {
     setSaving(true);
     setError(null);
     const body =
@@ -56,7 +65,21 @@ export function LinksManager({
     setSaving(false);
     if (r.ok) {
       setShowAdd(false);
-      void load();
+      void loadLinks();
+    } else {
+      setError(r.error);
+    }
+  }
+
+  async function addNewLanguage(name: string) {
+    setAddingLanguage(true);
+    const r = await api('/api/admin/languages', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    setAddingLanguage(false);
+    if (r.ok) {
+      void loadLanguages(); // Reload languages to include the new one
     } else {
       setError(r.error);
     }
@@ -65,7 +88,7 @@ export function LinksManager({
   async function remove(id: number) {
     if (!confirm('Delete this link?')) return;
     await api(`/api/admin/links/${id}`, { method: 'DELETE' });
-    void load();
+    void loadLinks();
   }
 
   return (
@@ -82,7 +105,13 @@ export function LinksManager({
       </div>
 
       {showAdd && (
-        <NewLinkForm onSave={add} saving={saving} />
+        <NewLinkForm
+          onSave={addLink}
+          saving={saving}
+          availableLanguages={availableLanguages}
+          onAddNewLanguage={addNewLanguage}
+          addingLanguage={addingLanguage}
+        />
       )}
       {error && (
         <div className="text-sm text-[var(--color-brand)] flex items-center gap-2">
@@ -98,7 +127,13 @@ export function LinksManager({
       ) : (
         <div className="space-y-2">
           {items.map((l) => (
-            <LinkItem key={l.id} link={l} onChanged={load} onDelete={() => remove(l.id)} />
+            <LinkItem
+              key={l.id}
+              link={l}
+              availableLanguages={availableLanguages}
+              onChanged={loadLinks}
+              onDelete={() => remove(l.id)}
+            />
           ))}
         </div>
       )}
@@ -115,14 +150,21 @@ type NewLink = {
 function NewLinkForm({
   onSave,
   saving,
+  availableLanguages,
+  onAddNewLanguage,
+  addingLanguage,
 }: {
   onSave: (f: NewLink) => void;
   saving: boolean;
+  availableLanguages: string[];
+  onAddNewLanguage: (name: string) => void;
+  addingLanguage: boolean;
 }) {
   const [quality, setQuality] = useState('1080p');
   const [type, setType] = useState<'direct' | 'extract'>('direct');
   const [url, setUrl] = useState('');
-  const [langs, setLangs] = useState('en');
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [newLanguageName, setNewLanguageName] = useState('');
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -131,12 +173,22 @@ function NewLinkForm({
       quality,
       type,
       url: url.trim(),
-      languages: langs
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
+      languages: selectedLanguages,
     });
   }
+
+  function handleLanguageChange(lang: string, isChecked: boolean) {
+    setSelectedLanguages((prev) => (isChecked ? [...prev, lang] : prev.filter((l) => l !== lang)));
+  }
+
+  function handleAddLanguage(e: React.FormEvent) {
+    e.preventDefault();
+    if (newLanguageName.trim() && !availableLanguages.includes(newLanguageName.trim())) {
+      onAddNewLanguage(newLanguageName.trim());
+      setNewLanguageName('');
+    }
+  }
+
   return (
     <form
       onSubmit={submit}
@@ -166,15 +218,40 @@ function NewLinkForm({
             <option value="extract">Extract (worker)</option>
           </select>
         </Field>
-        <Field label="Languages (comma)">
-          <input
-            value={langs}
-            onChange={(e) => setLangs(e.target.value)}
-            placeholder="en, hi"
-            className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm"
-          />
-        </Field>
       </div>
+      <Field label="Languages">
+        <div className="flex flex-wrap gap-2 py-1.5">
+          {availableLanguages.map((lang) => (
+            <label key={lang} className="flex items-center gap-1 text-sm">
+              <input
+                type="checkbox"
+                checked={selectedLanguages.includes(lang)}
+                onChange={(e) => handleLanguageChange(lang, e.target.checked)}
+                className="form-checkbox"
+              />
+              {lang}
+            </label>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 mt-2">
+          <input
+            type="text"
+            value={newLanguageName}
+            onChange={(e) => setNewLanguageName(e.target.value)}
+            placeholder="Add new language"
+            className="flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm"
+          />
+          <button
+            type="button"
+            onClick={handleAddLanguage}
+            disabled={addingLanguage || !newLanguageName.trim()}
+            className="inline-flex items-center gap-1 bg-gray-600 hover:bg-gray-700 rounded px-3 py-1.5 text-sm disabled:opacity-60"
+          >
+            {addingLanguage ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            Add
+          </button>
+        </div>
+      </Field>
       <Field label="URL">
         <input
           value={url}
@@ -211,66 +288,95 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function LinkItem({
   link,
+  availableLanguages,
   onChanged,
   onDelete,
 }: {
   link: LinkRow;
+  availableLanguages: string[];
   onChanged: () => void;
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [url, setUrl] = useState(link.url);
   const [quality, setQuality] = useState(link.quality);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(link.languages || []);
   const [busy, setBusy] = useState(false);
 
   async function save() {
     setBusy(true);
     await api(`/api/admin/links/${link.id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ url, quality }),
+      body: JSON.stringify({ url, quality, languages: selectedLanguages }),
     });
     setBusy(false);
     setEditing(false);
     onChanged();
   }
 
+  function handleLanguageChange(lang: string, isChecked: boolean) {
+    setSelectedLanguages((prev) => (isChecked ? [...prev, lang] : prev.filter((l) => l !== lang)));
+  }
+
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3">
       {editing ? (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <select
-              value={quality}
-              onChange={(e) => setQuality(e.target.value)}
-              className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1 text-sm"
-            >
-              {QUALITIES.map((q) => (
-                <option key={q} value={q}>
-                  {q}
-                </option>
-              ))}
-            </select>
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1 text-sm"
-            />
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <Field label="Quality">
+              <select
+                value={quality}
+                onChange={(e) => setQuality(e.target.value)}
+                className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm"
+              >
+                {QUALITIES.map((q) => (
+                  <option key={q} value={q}>
+                    {q}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="URL">
+              <input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm"
+              />
+            </Field>
           </div>
+
+          <Field label="Languages">
+            <div className="flex flex-wrap gap-2 py-1.5">
+              {availableLanguages.map((lang) => (
+                <label key={lang} className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedLanguages.includes(lang)}
+                    onChange={(e) => handleLanguageChange(lang, e.target.checked)}
+                    className="form-checkbox"
+                  />
+                  {lang}
+                </label>
+              ))}
+            </div>
+          </Field>
+
           <div className="flex justify-end gap-2">
             <button
               onClick={() => {
                 setEditing(false);
                 setUrl(link.url);
                 setQuality(link.quality);
+                setSelectedLanguages(link.languages || []);
               }}
-              className="text-xs px-2 py-1 border border-[var(--color-border)] rounded"
+              className="text-xs px-3 py-1.5 border border-[var(--color-border)] rounded"
             >
               Cancel
             </button>
             <button
               onClick={save}
               disabled={busy}
-              className="text-xs px-3 py-1 bg-[var(--color-brand)] rounded inline-flex items-center gap-1"
+              className="text-xs px-4 py-1.5 bg-[var(--color-brand)] rounded inline-flex items-center gap-1"
             >
               {busy ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
               Save

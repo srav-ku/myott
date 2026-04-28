@@ -1,15 +1,17 @@
 /**
  * Server-only TMDB v3 client.
  * - Reads `TMDB_API_KEY` from env.
- * - Adds Next.js fetch caching (revalidate 1h) for rate-limit safety.
- * - Never throws raw — wrap with `tmdbSafe` if you want a tagged result.
+ * - In-memory caching using Map.
+ * - Automatic retries for stability.
  */
 import 'server-only';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 export const TMDB_IMG_BASE = 'https://image.tmdb.org/t/p';
 
-const DEFAULT_REVALIDATE = 60 * 60; // 1h
+// Simple in-memory cache
+const tmdbCache = new Map<string, { data: any; expiry: number }>();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 function getKey(): string {
   const k = process.env.TMDB_API_KEY;
@@ -22,40 +24,103 @@ export type TmdbParams = Record<
   string | number | boolean | undefined | null
 >;
 
+/**
+ * Enhanced fetch with retry logic
+ */
+async function fetchWithRetry(
+  url: string,
+  init?: RequestInit,
+  retries = 2,
+): Promise<Response> {
+  let lastErr: any;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(url, {
+        ...init,
+        // In Next.js, we might still want this for underlying fetch optimizations
+        next: { revalidate: 3600 }, 
+      });
+      
+      // If OK, return immediately
+      if (res.ok) return res;
+      
+      // If not-retryable (e.g. 401, 404), return it
+      if (res.status !== 429 && res.status < 500) return res;
+      
+      // Otherwise wait and retry
+      if (i < retries) {
+        await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastErr = err;
+      if (i < retries) {
+        await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+        continue;
+      }
+    }
+  }
+  throw lastErr || new Error('Fetch failed after retries');
+}
+
+/**
+ * Core TMDB caller with caching and retries
+ */
 export async function tmdb<T = unknown>(
   path: string,
   params: TmdbParams = {},
-  revalidate: number = DEFAULT_REVALIDATE,
 ): Promise<T> {
   const url = new URL(TMDB_BASE + path);
   url.searchParams.set('api_key', getKey());
   url.searchParams.set('language', params.language?.toString() ?? 'en-US');
+  
   for (const [k, v] of Object.entries(params)) {
     if (k === 'language') continue;
     if (v === undefined || v === null || v === '') continue;
     url.searchParams.set(k, String(v));
   }
-  const res = await fetch(url.toString(), {
-    next: { revalidate },
-    headers: { accept: 'application/json' },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`TMDB ${path} -> ${res.status}: ${body.slice(0, 200)}`);
+
+  const cacheKey = url.toString();
+  const cached = tmdbCache.get(cacheKey);
+  
+  if (cached && cached.expiry > Date.now()) {
+    return cached.data as T;
   }
-  return (await res.json()) as T;
+
+  try {
+    const res = await fetchWithRetry(url.toString(), {
+      headers: { accept: 'application/json' },
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`TMDB ${path} -> ${res.status}: ${body.slice(0, 200)}`);
+    }
+
+    const data = (await res.json()) as T;
+    
+    // Store in cache
+    tmdbCache.set(cacheKey, {
+      data,
+      expiry: Date.now() + CACHE_TTL,
+    });
+
+    return data;
+  } catch (err) {
+    console.error(`[tmdb] Critical failure for ${path}:`, err);
+    throw err;
+  }
 }
 
-/** Try a TMDB call, returning `null` on failure. */
+/** Try a TMDB call, returning `null` instead of throwing. */
 export async function tmdbSafe<T = unknown>(
   path: string,
   params: TmdbParams = {},
-  revalidate?: number,
 ): Promise<T | null> {
   try {
-    return await tmdb<T>(path, params, revalidate);
-  } catch (err) {
-    console.error('[tmdb] failed:', err);
+    return await tmdb<T>(path, params);
+  } catch {
     return null;
   }
 }

@@ -70,12 +70,24 @@ export async function api<T = unknown>(
   } catch {
     return { ok: false, status: res.status, error: `HTTP ${res.status}` };
   }
-  const j = body as { ok?: boolean; data?: T; error?: string };
-  if (res.ok && j.ok) return { ok: true, data: j.data as T };
+
+  const j = body as { ok?: boolean; data?: unknown; error?: string };
+
+  // If it's a successful response and has the standard envelope, return the data
+  if (res.ok && j && typeof j === 'object' && j.ok === true) {
+    return { ok: true, data: (j.data !== undefined ? j.data : j) as T };
+  }
+
+  // If it's a successful response but doesn't have the envelope, return the body itself as data
+  if (res.ok) {
+    return { ok: true, data: body as T };
+  }
+
+  // Handle errors
   return {
     ok: false,
     status: res.status,
-    error: j.error || `HTTP ${res.status}`,
+    error: j?.error || `HTTP ${res.status}`,
   };
 }
 

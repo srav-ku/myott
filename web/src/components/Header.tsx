@@ -25,6 +25,28 @@ export function Header() {
     return () => document.removeEventListener('mousedown', handle);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (pathname === '/search') {
+      const sp = new URLSearchParams(window.location.search);
+      const urlQ = sp.get('q') || '';
+      if (urlQ !== q) setQ(urlQ);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!q.trim()) return;
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get('q') === q.trim()) return;
+
+      if (pathname === '/search') {
+        router.replace(`/search?q=${encodeURIComponent(q.trim())}`);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q, pathname, router]);
+
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
     if (!q.trim()) return;

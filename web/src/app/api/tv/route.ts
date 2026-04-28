@@ -17,6 +17,9 @@ import {
   type TmdbListItem,
   type TmdbPaged,
 } from '@/lib/tmdb';
+import { getDb } from '@/db/client';
+import { tv } from '@/db/schema';
+import { sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
@@ -64,7 +67,35 @@ export async function GET(req: NextRequest) {
       path = `/tv/${q.category}`;
     }
 
+    // 1. Fetch from TMDB
     const data = await tmdb<TmdbPaged<TmdbListItem>>(path, params);
+    
+    // 2. Bulk-persist
+    const db = await getDb();
+    if (data.results.length > 0) {
+      const values = data.results.map((s) => ({
+        tmdbId: s.id,
+        name: s.name ?? s.original_name ?? 'Untitled',
+        overview: s.overview ?? null,
+        posterPath: s.poster_path ?? null,
+        backdropPath: s.backdrop_path ?? null,
+        rating: s.vote_average ?? null,
+        firstAirDate: s.first_air_date ?? null,
+        releaseYear: s.first_air_date ? Number(s.first_air_date.slice(0, 4)) : null,
+      }));
+
+      for (const v of values) {
+        await db.insert(tv).values(v).onConflictDoUpdate({
+          target: tv.tmdbId,
+          set: {
+            rating: v.rating,
+            updatedAt: sql`(unixepoch())`,
+          },
+        });
+      }
+    }
+
+    // 3. Return results
     return ok({
       page: data.page,
       total_pages: data.total_pages,
@@ -80,6 +111,10 @@ export async function GET(req: NextRequest) {
         first_air_date: s.first_air_date ?? null,
         original_language: s.original_language ?? null,
       })),
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=1800',
+      },
     });
   } catch (err) {
     if (err instanceof z.ZodError) return badRequest(err);

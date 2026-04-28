@@ -36,21 +36,13 @@ export async function GET(
       created = result.created;
     } catch (err) {
       console.error('[api/tv] TMDB lookup/persist failed:', err);
-      // Try to fallback to existing DB record if TMDB is down
+      // Fallback to existing DB record if TMDB is down
+      const { tv: tvTable } = await import('@/db/schema');
       const existing = await db
         .select()
-        .from(episodes.tvId.table) // This is just a placeholder, should query tv table
-        .where(eq(sql`tmdb_id`, tmdbId))
+        .from(tvTable)
+        .where(eq(tvTable.tmdbId, tmdbId))
         .limit(1);
-      
-      // Since I can't easily reference 'tv' table without importing it, 
-      // let's just use the db.select() properly below.
-    }
-
-    // Correct fallback check
-    if (!show) {
-      const { tv } = await import('@/db/schema');
-      const existing = await db.select().from(tv).where(eq(tv.tmdbId, tmdbId)).limit(1);
       if (existing.length > 0) {
         show = existing[0];
       }

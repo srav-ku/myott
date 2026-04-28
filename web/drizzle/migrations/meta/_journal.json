@@ -15,6 +15,20 @@
       "when": 1777285632940,
       "tag": "0001_sleepy_dragon_lord",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1777286482581,
+      "tag": "0002_loose_ben_urich",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1777308352833,
+      "tag": "0003_eager_barracuda",
+      "breakpoints": true
     }
   ]
 }

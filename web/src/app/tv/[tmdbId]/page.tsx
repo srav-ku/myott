@@ -3,15 +3,17 @@ import { useEffect, useState, use } from 'react';
 import { api } from '@/lib/api';
 import { WatchlistButton } from '@/components/WatchlistButton';
 import { ReportButton } from '@/components/ReportButton';
+import { MissingLinksRequest } from '@/components/MissingLinksRequest';
 import { Loader2, Star, Calendar, Play } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation'; // Import router and searchParams
 
 type EpisodeLink = {
   id: number;
   quality: string;
   url: string;
   type: string;
-  languages: string[];
+  languages: string[] | null;
 };
 
 type Episode = {
@@ -53,6 +55,8 @@ export default function TvPage({
   const [show, setShow] = useState<Tv | null>(null);
   const [activeSeasonNum, setActiveSeasonNum] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const searchParams = useSearchParams(); // For getting current search params
+  const router = useRouter(); // For navigation
 
   useEffect(() => {
     let active = true;
@@ -87,7 +91,38 @@ export default function TvPage({
   const activeSeason = show.seasons.find((s) => s.season_number === activeSeasonNum);
   const episodes = activeSeason?.episodes ?? [];
 
+  const hasAnyLinks = show.seasons.some((s) =>
+    s.episodes.some((e) => e.links && e.links.length > 0),
+  );
+
   const year = show.release_year ?? (Number(show.first_air_date?.slice(0, 4)) || null);
+
+  // Extract unique languages from all episode links
+  const uniqueLanguages = show.seasons.reduce((acc: string[], season) => {
+    season.episodes.forEach((ep) => {
+      if (ep.links) {
+        ep.links.forEach((link) => {
+          if (link.languages) {
+            link.languages.forEach((lang) => {
+              if (lang && !acc.includes(lang)) {
+                acc.push(lang);
+              }
+            });
+          }
+        });
+      }
+    });
+    return acc.sort(); // Sort languages alphabetically
+  }, []);
+
+  // Handle navigation to search page with language filter
+  const handleLanguageClick = (lang: string) => {
+    const currentQuery = searchParams.get('q') || '';
+    const queryParams = new URLSearchParams();
+    if (currentQuery) queryParams.set('q', currentQuery);
+    queryParams.set('lang', lang);
+    router.push(`/search?${queryParams.toString()}`);
+  };
 
   return (
     <div className="space-y-8">
@@ -138,17 +173,35 @@ export default function TvPage({
             {show.genres && (
               <div className="flex flex-wrap gap-1.5">
                 {show.genres.map((g) => (
-                  <span
+                  <Link
                     key={g}
-                    className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)]"
+                    href={`/search?genre=${encodeURIComponent(g)}`}
+                    className="text-[10px] px-2 py-0.5 rounded-full bg-purple-900/30 border border-purple-500/30 text-purple-300 hover:bg-purple-900/50 transition-colors"
                   >
                     {g}
-                  </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+            {/* Display Languages */}
+            {uniqueLanguages.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--color-text-dim)] mr-1">
+                  Languages:
+                </span>
+                {uniqueLanguages.map((lang) => (
+                  <Link
+                    key={lang}
+                    href={`/search?lang=${encodeURIComponent(lang)}`}
+                    className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/30 border border-blue-500/30 text-blue-300 hover:bg-blue-900/50 transition-colors"
+                  >
+                    {lang}
+                  </Link>
                 ))}
               </div>
             )}
             {show.overview && (
-              <p className="max-w-3xl leading-relaxed text-[var(--color-text-dim)]">
+              <p className="max-w-3xl leading-relaxed text-[var(--color-text)]">
                 {show.overview}
               </p>
             )}
@@ -161,6 +214,15 @@ export default function TvPage({
 
       <div className="px-4 sm:px-6 space-y-4">
         <h2 className="text-xl font-semibold">Episodes</h2>
+        {!hasAnyLinks && (
+          <div className="mb-6">
+            <MissingLinksRequest
+              tmdbId={show.tmdb_id}
+              contentType="tv"
+              title={show.title}
+            />
+          </div>
+        )}
         {show.seasons.length === 0 ? (
           <div className="rounded-md border border-dashed border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-dim)]">
             No episodes available yet.

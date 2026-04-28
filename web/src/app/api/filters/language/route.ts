@@ -6,25 +6,25 @@ import { movies, tv, episodes, links } from '@/db/schema';
 export const runtime = 'nodejs';
 
 /**
- * GET /api/filters/language?code=te
+ * GET /api/filters/language?code=English
  * 
  * Logic:
- * 1. MOVIES: Join movies with links on movie_id where links.languages contains code.
- * 2. TV: Join tv -> episodes -> links where links.languages contains code.
+ * 1. MOVIES: Join movies with links on movie_id where links.languages contains the full language name.
+ * 2. TV: Join tv -> episodes -> links where links.languages contains the full language name.
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const code = searchParams.get('code');
+  const code = searchParams.get('code'); // 'code' param here represents the full language name
 
   if (!code) {
     return NextResponse.json(
-      { ok: false, error: 'Missing language code' },
+      { ok: false, error: 'Missing language name' },
       { status: 400 }
     );
   }
 
-  // To search inside a JSON array string like '["en","hi","te"]'
-  // using LIKE for '%"te"%' is the requested approach.
+  // To search inside a JSON array string like '["English","Hindi"]'
+  // using LIKE for '%"English"%' is the requested approach.
   const langPattern = `%"${code}"%`;
 
   try {

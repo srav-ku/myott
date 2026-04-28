@@ -7,6 +7,7 @@ import { getDb } from '@/db/client';
 import { movies, tv, episodes } from '@/db/schema';
 import {
   tmdb,
+  tmdbSafe,
   type TmdbMovieDetail,
   type TmdbTvDetail,
   type TmdbSeasonDetail,
@@ -21,6 +22,8 @@ function yearFromDate(date?: string | null): number | null {
 /** Find by tmdb_id, else fetch from TMDB, save, return the saved row. */
 export async function getOrCreateMovieByTmdbId(tmdbId: number) {
   const db = await getDb();
+  
+  // 1. Check DB first
   const existing = await db
     .select()
     .from(movies)
@@ -28,7 +31,24 @@ export async function getOrCreateMovieByTmdbId(tmdbId: number) {
     .limit(1);
   if (existing.length > 0) return { row: existing[0], created: false };
 
-  const detail = await tmdb<TmdbMovieDetail>(`/movie/${tmdbId}`);
+  // 2. Fetch from TMDB
+  const detail = await tmdb<TmdbMovieDetail>(`/movie/${tmdbId}`).catch((err) => {
+    console.error(`[getOrCreateMovie] TMDB fail for #${tmdbId}:`, err);
+    return null;
+  });
+
+  if (!detail) {
+    // Final fallback: maybe it was inserted by another request while we were fetching?
+    const again = await db
+      .select()
+      .from(movies)
+      .where(eq(movies.tmdbId, tmdbId))
+      .limit(1);
+    if (again.length > 0) return { row: again[0], created: false };
+    throw new Error('Movie not found locally and TMDB request failed');
+  }
+
+  // 3. Persist
   const inserted = await db
     .insert(movies)
     .values({
@@ -47,7 +67,6 @@ export async function getOrCreateMovieByTmdbId(tmdbId: number) {
     .onConflictDoNothing({ target: movies.tmdbId })
     .returning();
 
-  // Possible race — re-query if onConflict skipped the insert.
   if (inserted.length === 0) {
     const again = await db
       .select()
@@ -61,6 +80,8 @@ export async function getOrCreateMovieByTmdbId(tmdbId: number) {
 
 export async function getOrCreateTvByTmdbId(tmdbId: number) {
   const db = await getDb();
+  
+  // 1. Check DB first
   const existing = await db
     .select()
     .from(tv)
@@ -68,9 +89,25 @@ export async function getOrCreateTvByTmdbId(tmdbId: number) {
     .limit(1);
   if (existing.length > 0) return { row: existing[0], created: false };
 
+  // 2. Fetch from TMDB
   const detail = await tmdb<TmdbTvDetail>(`/tv/${tmdbId}`, {
     append_to_response: 'external_ids',
+  }).catch((err) => {
+    console.error(`[getOrCreateTv] TMDB fail for #${tmdbId}:`, err);
+    return null;
   });
+
+  if (!detail) {
+    const again = await db
+      .select()
+      .from(tv)
+      .where(eq(tv.tmdbId, tmdbId))
+      .limit(1);
+    if (again.length > 0) return { row: again[0], created: false };
+    throw new Error('TV show not found locally and TMDB request failed');
+  }
+
+  // 3. Persist
   const inserted = await db
     .insert(tv)
     .values({
@@ -114,7 +151,9 @@ export async function syncEpisodesForTv(tvId: number, tmdbId: number) {
   const db = await getDb();
 
   // 1. Get seasons count from TMDB
-  const detail = await tmdb<TmdbTvDetail>(`/tv/${tmdbId}`);
+  const detail = await tmdbSafe<TmdbTvDetail>(`/tv/${tmdbId}`);
+  if (!detail) return; // Silent fail for background sync
+  
   const seasons = (detail.seasons ?? []).filter((s) => s.season_number > 0);
 
   for (const s of seasons) {

@@ -6,7 +6,7 @@
  *  2. TV shows where at least one episode has NO links.
  */
 import { NextRequest } from 'next/server';
-import { eq, isNull } from 'drizzle-orm';
+import { eq, isNull, sql } from 'drizzle-orm';
 import { ok, serverError } from '@/lib/http';
 import { requireAdmin } from '@/lib/admin';
 import { getDb } from '@/db/client';
@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
       .from(movies)
       .leftJoin(links, eq(movies.id, links.movieId))
       .where(isNull(links.id))
+      .orderBy(movies.createdAt)
       .limit(100);
 
     // 2. TV shows with missing episode links
@@ -46,12 +47,14 @@ export async function GET(req: NextRequest) {
         name: tv.name,
         posterPath: tv.posterPath,
         numberOfSeasons: tv.numberOfSeasons,
+        oldestEpisode: sql`min(${episodes.createdAt})`,
       })
       .from(tv)
       .innerJoin(episodes, eq(tv.id, episodes.tvId))
       .leftJoin(links, eq(episodes.id, links.episodeId))
       .where(isNull(links.id))
       .groupBy(tv.id)
+      .orderBy(sql`min(${episodes.createdAt})`)
       .limit(100);
 
     return ok({

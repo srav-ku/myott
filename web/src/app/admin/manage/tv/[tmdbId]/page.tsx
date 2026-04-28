@@ -3,6 +3,7 @@ import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { AdminGuard } from '@/components/AdminGuard';
+import { LinksManager } from '@/components/LinksManager';
 import {
   ChevronLeft,
   Loader2,
@@ -207,47 +208,6 @@ function Inner({ tmdbId }: { tmdbId: number }) {
 }
 
 function EpisodeAdminCard({ episode }: { episode: Episode }) {
-  const l1080 = episode.links?.find((l) => l.quality === '1080p');
-  const l720 = episode.links?.find((l) => l.quality === '720p');
-
-  const [url1080, setUrl1080] = useState(l1080?.url || '');
-  const [url720, setUrl720] = useState(l720?.url || '');
-  const [type1080, setType1080] = useState<'direct' | 'extract'>(
-    l1080?.type || 'extract',
-  );
-  const [type720, setType720] = useState<'direct' | 'extract'>(
-    l720?.type || 'extract',
-  );
-  const [langs, setLangs] = useState(
-    (l1080?.languages || l720?.languages || ['en']).join(', '),
-  );
-  const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  async function save() {
-    setBusy(true);
-    const langArr = langs
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const r = await api(`/api/admin/episodes/${episode.id}/links`, {
-      method: 'POST',
-      body: JSON.stringify({
-        links: [
-          { quality: '1080p', url: url1080, type: type1080, languages: langArr },
-          { quality: '720p', url: url720, type: type720, languages: langArr },
-        ],
-      }),
-    });
-    setBusy(false);
-    if (r.ok) {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } else {
-      alert(r.error);
-    }
-  }
-
   return (
     <div className="bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] overflow-hidden">
       <div className="p-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/30 flex items-center justify-between">
@@ -260,11 +220,6 @@ function EpisodeAdminCard({ episode }: { episode: Episode }) {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {episode.links && episode.links.length > 0 && (
-            <span className="text-[10px] text-green-400 uppercase font-bold">
-              Linked
-            </span>
-          )}
           <button
             onClick={() => {
               if (confirm('Delete this episode?')) {
@@ -279,78 +234,8 @@ function EpisodeAdminCard({ episode }: { episode: Episode }) {
           </button>
         </div>
       </div>
-      <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_1fr_180px_auto] gap-4 items-end">
-        <div className="space-y-1">
-          <label className="text-[10px] uppercase font-bold text-[var(--color-text-dim)]">
-            1080p URL
-          </label>
-          <div className="flex gap-1">
-            <input
-              value={url1080}
-              onChange={(e) => setUrl1080(e.target.value)}
-              placeholder="https://..."
-              className="flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm outline-none focus:border-[var(--color-brand)]"
-            />
-            <select
-              value={type1080}
-              onChange={(e) => setType1080(e.target.value as any)}
-              className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded text-[10px] px-1"
-            >
-              <option value="extract">EXT</option>
-              <option value="direct">DIR</option>
-            </select>
-          </div>
-        </div>
-        <div className="space-y-1">
-          <label className="text-[10px] uppercase font-bold text-[var(--color-text-dim)]">
-            720p URL
-          </label>
-          <div className="flex gap-1">
-            <input
-              value={url720}
-              onChange={(e) => setUrl720(e.target.value)}
-              placeholder="https://..."
-              className="flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm outline-none focus:border-[var(--color-brand)]"
-            />
-            <select
-              value={type720}
-              onChange={(e) => setType720(e.target.value as any)}
-              className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded text-[10px] px-1"
-            >
-              <option value="extract">EXT</option>
-              <option value="direct">DIR</option>
-            </select>
-          </div>
-        </div>
-        <div className="space-y-1">
-          <label className="text-[10px] uppercase font-bold text-[var(--color-text-dim)]">
-            Languages
-          </label>
-          <input
-            value={langs}
-            onChange={(e) => setLangs(e.target.value)}
-            placeholder="en, hi, te"
-            className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm outline-none focus:border-[var(--color-brand)]"
-          />
-        </div>
-        <button
-          onClick={save}
-          disabled={busy}
-          className={`flex items-center gap-2 rounded px-4 py-2 text-sm font-bold transition-colors ${
-            saved
-              ? 'bg-green-600 text-white'
-              : 'bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white'
-          } disabled:opacity-50`}
-        >
-          {busy ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : saved ? (
-            <CheckCircle size={16} />
-          ) : (
-            <Save size={16} />
-          )}
-          {saved ? 'Saved' : 'Save'}
-        </button>
+      <div className="p-4">
+        <LinksManager scope={{ kind: 'episode', episodeId: episode.id }} />
       </div>
     </div>
   );
