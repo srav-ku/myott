@@ -100,6 +100,7 @@ const PostSchema = z
   .object({
     movie_id: z.number().int().positive().optional(),
     episode_id: z.number().int().positive().optional(),
+    link_id: z.number().int().positive().optional(),
   })
   .refine(
     (d) =>
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
   if (!g.ok) return g.response;
   const parsed = await parseJson(req, PostSchema);
   if (!parsed.ok) return parsed.response;
-  const { movie_id, episode_id } = parsed.data;
+  const { movie_id, episode_id, link_id } = parsed.data;
 
   try {
     const db = await getDb();
@@ -125,10 +126,14 @@ export async function POST(req: NextRequest) {
         userId: g.user.id,
         movieId: movie_id ?? null,
         episodeId: episode_id ?? null,
+        linkId: link_id ?? null,
       })
       .onConflictDoUpdate({
         target: [history.userId, target],
-        set: { lastWatchedAt: sql`(unixepoch())` },
+        set: { 
+          lastWatchedAt: sql`(unixepoch())`,
+          linkId: link_id ?? null,
+        },
       })
       .returning();
     return ok({ history: row[0], content_id: cid });

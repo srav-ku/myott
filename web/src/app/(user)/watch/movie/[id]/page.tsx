@@ -7,6 +7,12 @@ import { Player } from '@/components/Player';
 import { ReportButton } from '@/components/ReportButton';
 import { ChevronLeft, Loader2, AlertCircle } from 'lucide-react';
 
+type Movie = {
+  id: number;
+  tmdb_id: number;
+  title: string;
+  backdrop_url: string | null;
+};
 type LinkRow = {
   id: number;
   quality: string;
@@ -19,50 +25,39 @@ type StreamRes = {
   fallback: boolean;
   expires_at?: number;
 };
-type EpisodeMeta = {
-  id: number;
-  tv_tmdb_id: number | null;
-  tv_title: string;
-  tv_backdrop_url: string | null;
-  season_number: number;
-  episode_number: number;
-  title: string | null;
-  still_path: string | null;
-};
 
 function Inner({ id }: { id: number }) {
   const sp = useSearchParams();
-  const initialLink = Number(sp.get('link') || 0);
-  const [meta, setMeta] = useState<EpisodeMeta | null>(null);
+  const initialLinkId = Number(sp.get('link') || 0);
+  const [movie, setMovie] = useState<Movie | null>(null);
   const [links, setLinks] = useState<LinkRow[]>([]);
   const [activeLink, setActiveLink] = useState<number | null>(null);
   const [stream, setStream] = useState<StreamRes | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // load movie + links
   useEffect(() => {
     let active = true;
     (async () => {
-      const [m, r] = await Promise.all([
-        api<EpisodeMeta>(`/api/episodes/${id}`),
-        api<{ links: LinkRow[] }>(`/api/admin/links?episode_id=${id}`),
+      const [mRes, linksRes] = await Promise.all([
+        api<Movie>(`/api/movies/by-id/${id}`),
+        api<{ links: LinkRow[] }>(`/api/links?movie_id=${id}`),
       ]);
       if (!active) return;
-      if (m.ok) setMeta(m.data);
-      if (r.ok) {
-        setLinks(r.data.links);
-        const order = ['1080p', '720p', '480p', '2160p', '360p'];
-        const requested = r.data.links.find((l) => l.id === initialLink);
-        const fallback =
-          order.map((q) => r.data.links.find((l) => l.quality === q)).find(Boolean) ??
-          r.data.links[0];
-        setActiveLink((requested ?? fallback)?.id ?? null);
+      if (mRes.ok) setMovie(mRes.data);
+      if (linksRes.ok) {
+        setLinks(linksRes.data.links);
+        setActiveLink(pickQuality(linksRes.data.links, initialLinkId));
+      } else {
+        setErr(linksRes.error);
       }
     })();
     return () => {
       active = false;
     };
-  }, [id, initialLink]);
+  }, [id, initialLinkId]);
 
+  // load stream when active link changes
   useEffect(() => {
     if (!activeLink) return;
     let active = true;
@@ -73,10 +68,6 @@ function Inner({ id }: { id: number }) {
       if (!active) return;
       if (r.ok) {
         setStream(r.data);
-        void api('/api/user/history', {
-          method: 'POST',
-          body: JSON.stringify({ episode_id: id }),
-        });
       } else {
         setErr(r.error);
       }
@@ -89,22 +80,15 @@ function Inner({ id }: { id: number }) {
   return (
     <div className="px-4 sm:px-6 space-y-4 max-w-5xl mx-auto">
       <Link
-        href={meta ? `/tv/${meta.tv_tmdb_id}` : '/'}
+        href={`/movies/${movie?.tmdb_id ?? ''}`}
         className="inline-flex items-center gap-1 text-sm text-[var(--color-text-dim)] hover:text-white"
       >
-        <ChevronLeft size={16} /> {meta ? `Back to ${meta.tv_title}` : 'Back'}
+        <ChevronLeft size={16} /> Back
       </Link>
-      {meta ? (
-        <div>
-          <div className="text-sm text-[var(--color-text-dim)]">
-            {meta.tv_title} · S{meta.season_number} · E{meta.episode_number}
-          </div>
-          <h1 className="text-2xl font-semibold">{meta.title}</h1>
-        </div>
-      ) : (
-        <h1 className="text-2xl font-semibold">Episode #{id}</h1>
-      )}
-      {err ? (
+      <div>
+        <h1 className="text-2xl font-semibold">{movie?.title ?? `Movie #${id}`}</h1>
+      </div>
+      {err && stream === null ? (
         <div className="rounded-lg border border-[var(--color-brand)]/40 bg-[var(--color-brand)]/10 p-4 flex gap-3">
           <AlertCircle className="text-[var(--color-brand)] flex-shrink-0 mt-0.5" size={20} />
           <div className="text-sm">{err}</div>
@@ -115,7 +99,9 @@ function Inner({ id }: { id: number }) {
         </div>
       ) : stream.fallback ? (
         <div className="rounded-lg border border-yellow-700/40 bg-yellow-900/20 p-4 text-sm">
-          <strong>Embed link:</strong>{' '}
+          <strong>Embed link:</strong> this stream needs an external page to play. Open
+          it in a new tab:
+          <br />
           <a
             href={stream.url}
             target="_blank"
@@ -126,44 +112,67 @@ function Inner({ id }: { id: number }) {
           </a>
         </div>
       ) : (
-        <Player src={stream.url} poster={meta?.tv_backdrop_url ?? null} />
+        <Player src={stream.url} poster={movie?.backdrop_url ?? null} />
       )}
-      {links.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          <span className="text-xs text-[var(--color-text-dim)] self-center">
-            Quality:
-          </span>
-          {links.map((l) => (
-            <button
-              key={l.id}
-              onClick={() => setActiveLink(l.id)}
-              className={`text-xs px-2.5 py-1 rounded border ${
-                l.id === activeLink
-                  ? 'border-[var(--color-brand)] text-[var(--color-brand)]'
-                  : 'border-[var(--color-border)] hover:border-white'
-              }`}
-            >
-              {l.quality}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="pt-2">
-        <ReportButton contentType="episode" contentId={id} />
+      <QualityRow links={links} activeLink={activeLink} onPick={setActiveLink} />
+      <div className="flex gap-2 pt-2">
+        <ReportButton contentType="movie" contentId={id} />
       </div>
     </div>
   );
 }
 
-export default function EpisodeWatchPage({
+function pickQuality(links: LinkRow[], requested: number): number | null {
+  if (links.length === 0) return null;
+  if (requested && links.find((l) => l.id === requested)) return requested;
+  const order = ['1080p', '720p', '480p', '2160p', '360p'];
+  for (const q of order) {
+    const f = links.find((l) => l.quality === q);
+    if (f) return f.id;
+  }
+  return links[0].id;
+}
+
+function QualityRow({
+  links,
+  activeLink,
+  onPick,
+}: {
+  links: LinkRow[];
+  activeLink: number | null;
+  onPick: (id: number) => void;
+}) {
+  if (links.length <= 1) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      <span className="text-xs text-[var(--color-text-dim)] self-center">Quality:</span>
+      {links.map((l) => (
+        <button
+          key={l.id}
+          onClick={() => onPick(l.id)}
+          className={`text-xs px-2.5 py-1 rounded border ${
+            l.id === activeLink
+              ? 'border-[var(--color-brand)] text-[var(--color-brand)]'
+              : 'border-[var(--color-border)] hover:border-white'
+          }`}
+        >
+          {l.quality}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export default function MovieWatchPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const idNum = Number(id);
   return (
     <Suspense fallback={<div className="px-6">Loading…</div>}>
-      <Inner id={Number(id)} />
+      <Inner id={idNum} />
     </Suspense>
   );
 }

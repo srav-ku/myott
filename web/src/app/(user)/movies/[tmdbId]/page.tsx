@@ -161,7 +161,13 @@ export default function MoviePage({
                 {movie.overview}
               </p>
             )}
-            <StreamLauncher links={links} watchHrefBase={`/watch/movie/${movie.id}`} />
+            <StreamLauncher
+              links={links}
+              watchHrefBase={`/watch/movie/${movie.id}`}
+              contentId={movie.id}
+              contentType="movie"
+            />
+
             {links.length === 0 && (
               <div className="pt-4 max-w-xl">
                 <MissingLinksRequest

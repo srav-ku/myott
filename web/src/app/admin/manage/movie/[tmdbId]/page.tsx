@@ -2,7 +2,6 @@
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { AdminGuard } from '@/components/AdminGuard';
 import { LinksManager } from '@/components/LinksManager';
 import { ChevronLeft, Loader2, Trash2 } from 'lucide-react';
 
@@ -46,7 +45,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
     );
 
   return (
-    <div className="px-4 sm:px-6 space-y-6">
+    <div className="space-y-6">
       <Link
         href="/admin/manage"
         className="inline-flex items-center gap-1 text-sm text-[var(--color-text-dim)] hover:text-white"
@@ -102,8 +101,6 @@ export default function ManageMoviePage({
 }) {
   const { tmdbId } = use(params);
   return (
-    <AdminGuard>
-      <Inner tmdbId={Number(tmdbId)} />
-    </AdminGuard>
+    <Inner tmdbId={Number(tmdbId)} />
   );
 }

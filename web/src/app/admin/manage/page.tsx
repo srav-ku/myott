@@ -3,7 +3,6 @@ import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import { AdminGuard } from '@/components/AdminGuard';
 import { Search, Loader2, ArrowRight, Tv, Film } from 'lucide-react';
 
 type Result = {
@@ -62,7 +61,7 @@ function Inner() {
   }, [tab]);
 
   return (
-    <div className="px-4 sm:px-6 space-y-5">
+    <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Manage Content</h1>
@@ -70,12 +69,6 @@ function Inner() {
             Pick a title to add or edit streaming links.
           </p>
         </div>
-        <Link
-          href="/admin"
-          className="text-sm text-[var(--color-text-dim)] hover:text-white"
-        >
-          ← Back to dashboard
-        </Link>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -167,10 +160,8 @@ function Inner() {
 
 export default function ManagePage() {
   return (
-    <AdminGuard>
-      <Suspense fallback={<div className="px-6">Loading…</div>}>
-        <Inner />
-      </Suspense>
-    </AdminGuard>
+    <Suspense fallback={<div>Loading…</div>}>
+      <Inner />
+    </Suspense>
   );
 }

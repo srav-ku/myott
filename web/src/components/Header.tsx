@@ -95,18 +95,6 @@ export function Header() {
                 </Link>
               </>
             )}
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className={
-                  pathname.startsWith('/admin')
-                    ? 'text-[var(--color-brand)]'
-                    : 'text-[var(--color-brand)] hover:opacity-80'
-                }
-              >
-                Admin
-              </Link>
-            )}
           </nav>
           <form onSubmit={submitSearch} className="ml-auto flex-1 max-w-sm">
             <div className="relative">
@@ -144,11 +132,6 @@ export function Header() {
                     <div className="text-xs text-[var(--color-text-dim)] truncate">
                       {user.email}
                     </div>
-                    {isAdmin && (
-                      <div className="mt-1 inline-block text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-brand)]/15 text-[var(--color-brand)] font-medium">
-                        ADMIN
-                      </div>
-                    )}
                   </div>
                   <Link
                     href="/watchlist"
@@ -164,15 +147,6 @@ export function Header() {
                   >
                     <History size={14} /> History
                   </Link>
-                  {isAdmin && (
-                    <Link
-                      href="/admin"
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 hover:bg-[var(--color-surface-2)]"
-                    >
-                      <Shield size={14} /> Admin Panel
-                    </Link>
-                  )}
                   <button
                     onClick={() => {
                       signOut();

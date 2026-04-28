@@ -2,7 +2,6 @@
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { AdminGuard } from '@/components/AdminGuard';
 import { LinksManager } from '@/components/LinksManager';
 import {
   ChevronLeft,
@@ -100,7 +99,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
     show.release_year ?? (Number(show.first_air_date?.slice(0, 4)) || null);
 
   return (
-    <div className="px-4 sm:px-6 space-y-6 pb-20">
+    <div className="space-y-6 pb-20">
       <Link
         href="/admin/manage?tab=tv"
         className="inline-flex items-center gap-1 text-sm text-[var(--color-text-dim)] hover:text-white"
@@ -398,8 +397,6 @@ export default function ManageTvPage({
 }) {
   const { tmdbId } = use(params);
   return (
-    <AdminGuard>
-      <Inner tmdbId={Number(tmdbId)} />
-    </AdminGuard>
+    <Inner tmdbId={Number(tmdbId)} />
   );
 }

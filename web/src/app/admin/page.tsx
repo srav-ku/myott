@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { AdminGuard } from '@/components/AdminGuard';
 import {
   Film,
   Tv,
@@ -80,9 +80,17 @@ type AttentionData = {
 };
 
 function Dashboard() {
-  const [tab, setTab] = useState<
-    'overview' | 'reports' | 'requests' | 'attention' | 'updates'
-  >('overview');
+  const sp = useSearchParams();
+  const router = useRouter();
+  const tab = (sp.get('tab') as any) || 'overview';
+  
+  const setTab = (t: string) => {
+    const params = new URLSearchParams(sp.toString());
+    if (t === 'overview') params.delete('tab');
+    else params.set('tab', t);
+    router.push(`/admin?${params.toString()}`);
+  };
+
   const [stats, setStats] = useState<StatsData | null>(null);
 
   useEffect(() => {
@@ -93,12 +101,12 @@ function Dashboard() {
   }, []);
 
   return (
-    <div className="px-4 sm:px-6 space-y-8 pb-12">
+    <div className="space-y-8 pb-12">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Admin Panel</h1>
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
           <p className="text-sm text-[var(--color-text-dim)]">
-            Manage streams, episodes, reports, and content requests.
+            Overview of platform health and pending tasks.
           </p>
         </div>
         <div className="flex gap-2">
@@ -776,9 +784,9 @@ function RequestsTab() {
 
 export default function AdminPage() {
   return (
-    <AdminGuard>
+    <Suspense fallback={<div className="flex items-center gap-2 text-[var(--color-text-dim)]"><Loader2 className="animate-spin" size={16} /> Loading dashboard...</div>}>
       <Dashboard />
-    </AdminGuard>
+    </Suspense>
   );
 }
 

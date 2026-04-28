@@ -36,6 +36,13 @@
       "when": 1777370374256,
       "tag": "0004_happy_inhumans",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1777395306635,
+      "tag": "0005_cheerful_the_hunter",
+      "breakpoints": true
     }
   ]
 }

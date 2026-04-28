@@ -265,6 +265,9 @@ export const history = sqliteTable(
     episodeId: integer('episode_id').references(() => episodes.id, {
       onDelete: 'cascade',
     }),
+    linkId: integer('link_id').references(() => links.id, {
+      onDelete: 'set null',
+    }),
     lastWatchedAt: integer('last_watched_at', { mode: 'timestamp' })
       .notNull()
       .default(sql`(unixepoch())`),

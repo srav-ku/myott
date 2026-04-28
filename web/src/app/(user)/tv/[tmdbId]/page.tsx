@@ -3,8 +3,9 @@ import { useEffect, useState, use } from 'react';
 import { api } from '@/lib/api';
 import { WatchlistButton } from '@/components/WatchlistButton';
 import { ReportButton } from '@/components/ReportButton';
+import { StreamLauncher } from '@/components/StreamLauncher';
 import { MissingLinksRequest } from '@/components/MissingLinksRequest';
-import { Loader2, Star, Calendar, Play } from 'lucide-react';
+import { Loader2, Star, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation'; // Import router and searchParams
 
@@ -299,25 +300,12 @@ function EpisodeRow({ ep }: { ep: Episode }) {
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          {hasLinks ? (
-            <div className="flex gap-2">
-              {ep.links.map((link) => (
-                <Link
-                  key={link.id}
-                  href={`/watch/episode/${ep.id}?linkId=${link.id}`}
-                  className="inline-flex items-center gap-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white rounded-lg px-4 py-2 text-sm font-bold shadow-lg shadow-brand/20 transition-all active:scale-95"
-                >
-                  <Play size={14} fill="currentColor" />
-                  Watch {link.quality}
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-text-dim)] text-xs font-medium">
-              <Loader2 size={12} className="animate-spin" />
-              Links coming soon
-            </div>
-          )}
+          <StreamLauncher
+            links={ep.links}
+            watchHrefBase={`/watch/episode/${ep.id}`}
+            contentId={ep.id}
+            contentType="episode"
+          />
           <ReportButton contentType="episode" contentId={ep.id} />
         </div>
       </div>
