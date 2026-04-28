@@ -29,10 +29,11 @@ type Item =
     };
 
 export default function HistoryPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [items, setItems] = useState<Item[] | null>(null);
 
   useEffect(() => {
+    if (loading) return;
     if (!user) {
       setItems([]);
       return;
@@ -40,22 +41,34 @@ export default function HistoryPage() {
     void (async () => {
       const r = await api<{ items: Item[] }>('/api/user/history');
       if (r.ok) setItems(r.data.items);
+      else setItems([]);
     })();
-  }, [user]);
+  }, [user, loading]);
 
   async function remove(id: number) {
     await api(`/api/user/history/${id}`, { method: 'DELETE' });
     setItems((p) => (p ? p.filter((i) => i.history_id !== id) : p));
   }
 
-  if (!user)
-    return (
-      <div className="px-6 py-12 text-center">Sign in to see your history.</div>
-    );
-  if (!items)
+  if (loading || (user && items === null))
     return (
       <div className="grid place-items-center py-24">
-        <Loader2 className="animate-spin" />
+        <Loader2 className="animate-spin text-[var(--color-brand)]" />
+      </div>
+    );
+
+  if (!user)
+    return (
+      <div className="px-6 py-16 text-center max-w-md mx-auto">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-8">
+          <h2 className="text-xl font-bold mb-2">Sign in Required</h2>
+          <p className="text-[var(--color-text-dim)] text-sm mb-6">
+            Sign in to see your watch history and resume where you left off.
+          </p>
+          <p className="text-xs text-[var(--color-text-dim)]">
+            Click the profile icon in the header to sign in.
+          </p>
+        </div>
       </div>
     );
 

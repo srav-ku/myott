@@ -15,43 +15,55 @@ type Item = {
 };
 
 export default function WatchlistPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [items, setItems] = useState<Item[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   async function load() {
     const r = await api<{ items: Item[] }>('/api/user/watchlist');
     if (r.ok) setItems(r.data.items);
-    else setErr(r.error);
+    else {
+      setErr(r.error);
+      setItems([]);
+    }
   }
 
   useEffect(() => {
+    if (loading) return;
     if (!user) {
       setItems([]);
       return;
     }
     void load();
-  }, [user]);
+  }, [user, loading]);
 
   async function remove(id: number) {
     await api(`/api/user/watchlist/${id}`, { method: 'DELETE' });
     setItems((p) => (p ? p.filter((i) => i.watchlist_id !== id) : p));
   }
 
+  if (loading || (user && items === null))
+    return (
+      <div className="grid place-items-center py-24">
+        <Loader2 className="animate-spin text-[var(--color-brand)]" />
+      </div>
+    );
+
   if (!user) {
     return (
-      <div className="px-6 py-12 text-center">
-        <p>Sign in to view your watchlist.</p>
+      <div className="px-6 py-16 text-center max-w-md mx-auto">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-8">
+          <h2 className="text-xl font-bold mb-2">Sign in Required</h2>
+          <p className="text-[var(--color-text-dim)] text-sm mb-6">
+            Sign in to manage your watchlist and sync it across devices.
+          </p>
+          <p className="text-xs text-[var(--color-text-dim)]">
+            Click the profile icon in the header to sign in.
+          </p>
+        </div>
       </div>
     );
   }
-  if (err) return <div className="px-6 text-[var(--color-brand)]">{err}</div>;
-  if (!items)
-    return (
-      <div className="grid place-items-center py-24">
-        <Loader2 className="animate-spin" />
-      </div>
-    );
 
   return (
     <div className="px-4 sm:px-6 space-y-5">
