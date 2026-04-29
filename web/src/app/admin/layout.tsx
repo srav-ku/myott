@@ -36,12 +36,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   const sidebarItems = [
-    { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-    { label: 'Movies', href: '/admin/manage?tab=movie', icon: Film },
-    { label: 'TV Shows', href: '/admin/manage?tab=tv', icon: Tv },
-    { label: 'Reports', href: '/admin?tab=reports', icon: Flag },
-    { label: 'Requests', href: '/admin?tab=requests', icon: MessageSquare },
-    { label: 'Updates', href: '/admin?tab=updates', icon: Megaphone },
+    { label: 'Content', href: '/admin', icon: Film },
+    { label: 'Reports', href: '/admin/reports', icon: Flag },
+    { label: 'Requests', href: '/admin/requests', icon: MessageSquare },
+    { label: 'Updates', href: '/admin/updates', icon: Megaphone },
   ];
 
   return (
@@ -59,13 +57,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             const itemTab = item.href.split('tab=')[1];
             
             let active = false;
-            if (itemTab) {
-              active = pathname === itemPath && searchParams.get('tab') === itemTab;
-              // Sub-pages
-              if (item.label === 'Movies' && pathname.startsWith('/admin/manage/movie')) active = true;
-              if (item.label === 'TV Shows' && pathname.startsWith('/admin/manage/tv')) active = true;
+            if (item.label === 'Content') {
+              active = pathname === '/admin' || pathname === '/admin/manage' || pathname.startsWith('/admin/manage/');
             } else {
-              active = pathname === itemPath && !searchParams.get('tab');
+              active = pathname.startsWith(item.href);
             }
 
             return (
