@@ -6,6 +6,7 @@ import { ReportButton } from '@/components/ReportButton';
 import { StreamLauncher } from '@/components/StreamLauncher';
 import { MissingLinksRequest } from '@/components/MissingLinksRequest';
 import { Loader2, Star, Calendar, Clock } from 'lucide-react';
+import AdRenderer from '@/components/AdRenderer';
 import Link from 'next/link'; // Import Link for navigation
 
 type LinkRow = {
@@ -183,6 +184,9 @@ export default function MoviePage({
             </div>
           </div>
         </div>
+      </div>
+      <div className="px-4 sm:px-6 pb-12">
+        <AdRenderer position="detail_bottom" />
       </div>
     </div>
   );

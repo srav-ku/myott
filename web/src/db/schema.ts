@@ -425,6 +425,54 @@ export const updates = sqliteTable(
 );
 
 /* -------------------------------------------------------------------------- */
+/*                                     ADS                                    */
+/* -------------------------------------------------------------------------- */
+
+export const AD_POSITIONS = [
+  'home_banner',
+  'search_inline',
+  'detail_bottom',
+  'player_overlay',
+] as const;
+export type AdPosition = (typeof AD_POSITIONS)[number];
+
+export const AD_TYPES = ['banner', 'rewarded', 'interstitial'] as const;
+export type AdType = (typeof AD_TYPES)[number];
+
+export const AD_PROVIDERS = ['custom', 'admob', 'applovin'] as const;
+export type AdProvider = (typeof AD_PROVIDERS)[number];
+
+export const ads = sqliteTable(
+  'ads',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    position: text('position', { enum: AD_POSITIONS }).notNull(),
+    type: text('type', { enum: AD_TYPES }).notNull(),
+    provider: text('provider', { enum: AD_PROVIDERS }).notNull(),
+
+    imageUrl: text('image_url'),
+    redirectUrl: text('redirect_url'),
+    unitId: text('unit_id'),
+
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(false),
+    priority: integer('priority').notNull().default(0),
+    frequencyLimit: integer('frequency_limit').notNull().default(0),
+
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({
+    positionIdx: index('ads_position_idx').on(t.position),
+    isActiveIdx: index('ads_is_active_idx').on(t.isActive),
+    priorityIdx: index('ads_priority_idx').on(t.priority),
+  }),
+);
+
+/* -------------------------------------------------------------------------- */
 /*                              SCHEMA EXPORTS                                */
 /* -------------------------------------------------------------------------- */
 
@@ -441,4 +489,5 @@ export const schema = {
   searchLogs,
   contentRequests,
   updates,
+  ads,
 };

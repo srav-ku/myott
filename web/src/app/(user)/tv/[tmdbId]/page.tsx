@@ -6,6 +6,7 @@ import { ReportButton } from '@/components/ReportButton';
 import { StreamLauncher } from '@/components/StreamLauncher';
 import { MissingLinksRequest } from '@/components/MissingLinksRequest';
 import { Loader2, Star, Calendar } from 'lucide-react';
+import AdRenderer from '@/components/AdRenderer';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation'; // Import router and searchParams
 
@@ -13,7 +14,7 @@ type EpisodeLink = {
   id: number;
   quality: string;
   url: string;
-  type: string;
+  type: 'direct' | 'extract';
   languages: string[] | null;
 };
 
@@ -253,6 +254,9 @@ export default function TvPage({
             </div>
           </>
         )}
+      </div>
+      <div className="px-4 sm:px-6 pb-12">
+        <AdRenderer position="detail_bottom" />
       </div>
     </div>
   );

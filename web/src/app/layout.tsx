@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
+import { AdProvider } from '@/components/AdProvider';
 
 export const metadata = {
   title: 'STREAMR — Movies & TV',
@@ -11,9 +12,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <AdProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </AdProvider>
       </body>
     </html>
   );

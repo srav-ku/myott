@@ -2,6 +2,9 @@
 import { useRouter } from 'next/navigation';
 import { Play } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAds } from './AdProvider';
+import { RewardAdModal } from './RewardAdModal';
+import { useState } from 'react';
 
 type Link = {
   id: number;
@@ -21,6 +24,8 @@ const QUALITY_ORDER = ['1080p', '720p'];
 
 export function StreamLauncher({ links, watchHrefBase, contentId, contentType }: Props) {
   const router = useRouter();
+  const { hasActiveAd } = useAds();
+  const [pendingWatch, setPendingWatch] = useState<number | null>(null);
 
   if (links.length === 0) {
     return (
@@ -35,7 +40,7 @@ export function StreamLauncher({ links, watchHrefBase, contentId, contentType }:
   );
   const best = sorted[0];
 
-  async function handleWatch(linkId: number) {
+  function proceedToWatch(linkId: number) {
     // Record history (fire and forget, don't block UI)
     const body = contentType === 'movie' 
       ? { movie_id: contentId, link_id: linkId }
@@ -49,8 +54,31 @@ export function StreamLauncher({ links, watchHrefBase, contentId, contentType }:
     router.push(`${watchHrefBase}?link=${linkId}`);
   }
 
+  async function handleWatch(linkId: number) {
+    const link = links.find(l => l.id === linkId);
+    const isHighQuality = link?.quality === '1080p';
+
+    // If 1080p AND rewarded ads are active, show modal
+    if (isHighQuality && hasActiveAd('player_overlay', 'rewarded')) {
+      setPendingWatch(linkId);
+      return;
+    }
+
+    proceedToWatch(linkId);
+  }
+
   return (
     <div className="space-y-2">
+      {pendingWatch !== null && (
+        <RewardAdModal 
+          onComplete={() => {
+            const id = pendingWatch;
+            setPendingWatch(null);
+            proceedToWatch(id);
+          }}
+          onClose={() => setPendingWatch(null)}
+        />
+      )}
       <button
         onClick={() => handleWatch(best.id)}
         className="inline-flex items-center gap-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white font-medium rounded-md px-5 py-2.5"

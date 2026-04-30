@@ -3,6 +3,7 @@ import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MediaRow } from '@/components/MediaRow';
 import { UpdatesSection } from '@/components/UpdatesSection';
+import AdRenderer from '@/components/AdRenderer';
 
 function HomeInner() {
   const sp = useSearchParams();
@@ -23,6 +24,10 @@ function HomeInner() {
           </p>
         </div>
       </section>
+
+      <div className="px-4 sm:px-6">
+        <AdRenderer position="home_banner" />
+      </div>
 
       <UpdatesSection />
 

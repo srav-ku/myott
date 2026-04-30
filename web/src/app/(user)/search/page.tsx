@@ -3,6 +3,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api, tmdbPoster } from '@/lib/api';
 import { MediaCard } from '@/components/MediaCard';
+import AdRenderer from '@/components/AdRenderer';
 import { Check, Loader2, Send, Search } from 'lucide-react';
 
 type SearchItem = {
@@ -220,6 +221,10 @@ function SearchInner() {
                       ))}
                     </div>
                   </div>
+                )}
+
+                {(movies.length > 0 || tvShows.length > 0) && (
+                  <AdRenderer position="search_inline" />
                 )}
 
                 {tvShows.length > 0 && (

@@ -40,6 +40,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     { label: 'Reports', href: '/admin/reports', icon: Flag },
     { label: 'Requests', href: '/admin/requests', icon: MessageSquare },
     { label: 'Updates', href: '/admin/updates', icon: Megaphone },
+    { label: 'Ads', href: '/admin/ads', icon: LayoutDashboard },
   ];
 
   return (
