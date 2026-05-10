@@ -1,10 +1,8 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { Play } from 'lucide-react';
+import { Play, Copy, Check, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useAds } from './AdProvider';
-import { RewardAdModal } from './RewardAdModal';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 type Link = {
   id: number;
@@ -24,8 +22,16 @@ const QUALITY_ORDER = ['1080p', '720p'];
 
 export function StreamLauncher({ links, watchHrefBase, contentId, contentType }: Props) {
   const router = useRouter();
-  const { hasActiveAd } = useAds();
-  const [pendingWatch, setPendingWatch] = useState<number | null>(null);
+  const [showCopyLink, setShowCopyLink] = useState(false);
+  const [copying, setCopying] = useState<number | null>(null);
+  const [copied, setCopied] = useState<number | null>(null);
+
+  useEffect(() => {
+    const check = () => setShowCopyLink(localStorage.getItem('showCopyLink') === 'true');
+    check();
+    window.addEventListener('storage', check);
+    return () => window.removeEventListener('storage', check);
+  }, []);
 
   if (links.length === 0) {
     return (
@@ -40,71 +46,98 @@ export function StreamLauncher({ links, watchHrefBase, contentId, contentType }:
   );
   const best = sorted[0];
 
-  function proceedToWatch(linkId: number) {
-    // Record history (fire and forget, don't block UI)
+  async function recordHistory(linkId: number) {
     const body = contentType === 'movie' 
-      ? { movie_id: contentId, link_id: linkId }
-      : { episode_id: contentId, link_id: linkId };
+      ? { movie_id: contentId }
+      : { episode_id: contentId };
     
-    void api('/api/user/history', {
+    await api('/api/user/history', {
       method: 'POST',
       body: JSON.stringify(body),
     });
-
-    router.push(`${watchHrefBase}?link=${linkId}`);
   }
 
   async function handleWatch(linkId: number) {
-    const link = links.find(l => l.id === linkId);
-    const isHighQuality = link?.quality === '1080p';
+    await recordHistory(linkId);
+    router.push(`${watchHrefBase}?link=${linkId}`);
+  }
 
-    // If 1080p AND rewarded ads are active, show modal
-    if (isHighQuality && hasActiveAd('player_overlay', 'rewarded')) {
-      setPendingWatch(linkId);
-      return;
+  async function handleCopy(linkId: number) {
+    setCopying(linkId);
+    try {
+      const res = await api<{ url: string }>(`/api/stream/${linkId}`);
+      if (res.ok && res.data.url) {
+        await navigator.clipboard.writeText(res.data.url);
+        setCopied(linkId);
+        setTimeout(() => setCopied(null), 2000);
+      }
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    } finally {
+      setCopying(null);
     }
-
-    proceedToWatch(linkId);
   }
 
   return (
-    <div className="space-y-2">
-      {pendingWatch !== null && (
-        <RewardAdModal 
-          onComplete={() => {
-            const id = pendingWatch;
-            setPendingWatch(null);
-            proceedToWatch(id);
-          }}
-          onClose={() => setPendingWatch(null)}
-        />
-      )}
-      <button
-        onClick={() => handleWatch(best.id)}
-        className="inline-flex items-center gap-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white font-medium rounded-md px-5 py-2.5"
-      >
-        <Play size={18} fill="white" /> Play {best.quality}
-      </button>
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={() => handleWatch(best.id)}
+          className="inline-flex items-center gap-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white font-bold uppercase tracking-wider text-xs rounded-lg px-6 py-3 transition-all shadow-lg"
+        >
+          <Play size={16} fill="white" /> Play {best.quality}
+        </button>
+
+        {showCopyLink && (
+          <button
+            onClick={() => handleCopy(best.id)}
+            disabled={!!copying}
+            className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white font-bold uppercase tracking-wider text-xs rounded-lg px-6 py-3 transition-all border border-white/10"
+          >
+            {copying === best.id ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : copied === best.id ? (
+              <Check size={16} className="text-green-500" />
+            ) : (
+              <Copy size={16} />
+            )}
+            {copied === best.id ? 'Copied!' : `Copy ${best.quality} Link`}
+          </button>
+        )}
+      </div>
+
       {sorted.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          <span className="text-xs text-[var(--color-text-dim)] self-center">
-            Other qualities:
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-text-dim)]">
+            Other Qualities:
           </span>
-          {sorted.slice(1).map((l) => (
-            <button
-              key={l.id}
-              onClick={() => handleWatch(l.id)}
-              className="text-xs px-2.5 py-1 rounded border border-[var(--color-border)] hover:border-white"
-            >
-              {l.quality}
-              {l.languages && l.languages.length > 0 && (
-                <span className="text-[var(--color-text-dim)]">
-                  {' '}
-                  · {l.languages.join('/')}
-                </span>
-              )}
-            </button>
-          ))}
+          <div className="flex flex-wrap gap-1.5">
+            {sorted.slice(1).map((l) => (
+              <div key={l.id} className="flex items-center gap-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md p-1">
+                <button
+                  onClick={() => handleWatch(l.id)}
+                  className="text-[10px] font-bold px-2 py-1 hover:text-[var(--color-brand)] transition-colors"
+                >
+                  {l.quality}
+                </button>
+                {showCopyLink && (
+                  <button
+                    onClick={() => handleCopy(l.id)}
+                    className="p-1 hover:text-[var(--color-brand)] transition-colors border-l border-[var(--color-border)]"
+                    title="Copy Link"
+                  >
+                    {copying === l.id ? (
+                      <Loader2 size={10} className="animate-spin" />
+                    ) : copied === l.id ? (
+                      <Check size={10} className="text-green-500" />
+                    ) : (
+                      <Copy size={10} />
+                    )}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

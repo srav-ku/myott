@@ -91,6 +91,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const db = await getDb();
+    
+    // Seed missing languages
+    const { languages } = await import('@/db/schema');
+    for (const lang of langs) {
+      await db.insert(languages).values({ name: lang }).onConflictDoNothing();
+    }
+
     const inserted = await db
       .insert(links)
       .values({

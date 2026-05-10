@@ -21,6 +21,7 @@ export type StoredUser = {
   email: string;
   displayName: string;
   token: string;
+  stealthMode: boolean;
 };
 
 export function readStoredUser(): StoredUser | null {

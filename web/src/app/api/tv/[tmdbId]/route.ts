@@ -11,6 +11,7 @@ import { getDb } from '@/db/client';
 import { episodes, links } from '@/db/schema';
 import { getOrCreateTvByTmdbId, syncEpisodesForTv } from '@/lib/persist';
 import { tmdbImg } from '@/lib/tmdb';
+import { requireUser } from '@/lib/user';
 
 export const runtime = 'nodejs';
 
@@ -51,14 +52,14 @@ export async function GET(
     if (!show) return notFound('TV show not found');
 
     // 2. Sync episodes if none exist
-    const currentEpCount = await db
-      .select({ value: count() })
+    const currentEpCountRes = await (db as any)
+      .select({ count: sql<number>`count(*)` })
       .from(episodes)
       .where(eq(episodes.tvId, show.id));
 
-    if (currentEpCount[0].value === 0) {
+    if (Number((currentEpCountRes[0] as any).count || 0) === 0) {
       try {
-        await syncEpisodesForTv(show.id, show.tmdbId);
+        await syncEpisodesForTv(show.id, show.tmdbId!);
       } catch (err) {
         console.error('[api/tv] Episode sync failed:', err);
       }
@@ -80,6 +81,10 @@ export async function GET(
         .where(inArray(links.episodeId, epIds));
     }
 
+    // Stealth Mode Check
+    const guard = await requireUser(_req);
+    const isStealthOn = guard.ok && guard.user.stealthMode;
+
     // 4. Group by seasons
     const seasonsMap = new Map<number, any>();
     for (const ep of dbEpisodes) {
@@ -90,15 +95,17 @@ export async function GET(
         });
       }
 
-      const epLinks = allLinks
-        .filter((l) => l.episodeId === ep.id)
-        .map((l) => ({
-          id: l.id,
-          quality: l.quality,
-          url: l.url,
-          type: l.type,
-          languages: l.languages,
-        }));
+      let epLinks: any[] = [];
+      if (isStealthOn) {
+        epLinks = allLinks
+          .filter((l) => l.episodeId === ep.id)
+          .map((l) => ({
+            id: l.id,
+            quality: l.quality,
+            type: l.type,
+            languages: l.languages,
+          }));
+      }
 
       seasonsMap.get(ep.seasonNumber).episodes.push({
         id: ep.id,

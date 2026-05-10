@@ -4,16 +4,30 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from './AuthProvider';
 import { AuthModal } from './AuthModal';
-import { Search, User, LogOut, Bookmark, History, Shield, Film } from 'lucide-react';
+import { Search, User, LogOut, Bookmark, History, Shield, Film, Settings, Copy, Link as LinkIcon } from 'lucide-react';
+import { StealthToggle } from './StealthToggle';
 
 export function Header() {
   const { user, isAdmin, signOut, loading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showCopyLink, setShowCopyLink] = useState(false);
   const [q, setQ] = useState('');
   const router = useRouter();
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const val = localStorage.getItem('showCopyLink') === 'true';
+    setShowCopyLink(val);
+  }, []);
+
+  const toggleCopyLink = () => {
+    const newVal = !showCopyLink;
+    setShowCopyLink(newVal);
+    localStorage.setItem('showCopyLink', String(newVal));
+    window.dispatchEvent(new Event('storage'));
+  };
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -72,29 +86,16 @@ export function Header() {
             </Link>
             <Link
               href="/?tab=movies"
-              className="hover:text-white"
+              className={pathname.includes('movies') ? 'text-white' : 'hover:text-white'}
             >
               Movies
             </Link>
-            <Link href="/?tab=tv" className="hover:text-white">
+            <Link 
+              href="/?tab=tv" 
+              className={pathname.includes('tv') ? 'text-white' : 'hover:text-white'}
+            >
               TV Shows
             </Link>
-            {user && (
-              <>
-                <Link
-                  href="/watchlist"
-                  className={pathname === '/watchlist' ? 'text-white' : 'hover:text-white'}
-                >
-                  Watchlist
-                </Link>
-                <Link
-                  href="/history"
-                  className={pathname === '/history' ? 'text-white' : 'hover:text-white'}
-                >
-                  History
-                </Link>
-              </>
-            )}
           </nav>
           <form onSubmit={submitSearch} className="ml-auto flex-1 max-w-sm">
             <div className="relative">
@@ -134,19 +135,33 @@ export function Header() {
                     </div>
                   </div>
                   <Link
-                    href="/watchlist"
+                    href="/collections"
                     onClick={() => setMenuOpen(false)}
                     className="flex items-center gap-2 px-3 py-2 hover:bg-[var(--color-surface-2)]"
                   >
-                    <Bookmark size={14} /> Watchlist
+                    <Bookmark size={14} /> My Collections
                   </Link>
                   <Link
                     href="/history"
                     onClick={() => setMenuOpen(false)}
                     className="flex items-center gap-2 px-3 py-2 hover:bg-[var(--color-surface-2)]"
                   >
-                    <History size={14} /> History
+                    <History size={14} /> Watch History
                   </Link>
+
+                  <button
+                    onClick={toggleCopyLink}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--color-surface-2)] text-left"
+                  >
+                    <LinkIcon size={14} /> 
+                    <span className="flex-1">Show Copy Links</span>
+                    <div className={`w-8 h-4 rounded-full relative transition-colors ${showCopyLink ? 'bg-[var(--color-brand)]/50' : 'bg-white/10'}`}>
+                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${showCopyLink ? 'right-0.5' : 'left-0.5'}`} />
+                    </div>
+                  </button>
+
+                  <div className="border-t border-[var(--color-border)] my-1" />
+                  <StealthToggle />
                   <button
                     onClick={() => {
                       signOut();

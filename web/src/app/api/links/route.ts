@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm';
 import { ok, fail, parseQuery, serverError } from '@/lib/http';
 import { getDb } from '@/db/client';
 import { links } from '@/db/schema';
+import { requireUser } from '@/lib/user';
 
 export const runtime = 'nodejs';
 
@@ -25,6 +26,14 @@ export async function GET(req: NextRequest) {
   const q = parsed.data;
 
   try {
+    const guard = await requireUser(req);
+    if (!guard.ok) return guard.response;
+
+    // Stealth mode check
+    if (!guard.user.stealthMode) {
+      return ok({ links: [] });
+    }
+
     const db = await getDb();
     const rows = await db
       .select({

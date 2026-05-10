@@ -3,13 +3,14 @@ import { z } from 'zod';
 import { sql, like, eq, and, or } from 'drizzle-orm';
 import { ok, badRequest, serverError, parseQuery } from '@/lib/http';
 import { getDb } from '@/db/client';
-import { movies, tv, searchLogs, contentRequests, links, episodes } from '@/db/schema'; // Import links and episodes
+import { movies, tv, links, episodes } from '@/db/schema';
 import {
   tmdb,
   tmdbImg,
   type TmdbListItem,
   type TmdbPaged,
 } from '@/lib/tmdb';
+import { requireAdmin } from '@/lib/admin';
 
 export const runtime = 'nodejs';
 
@@ -18,7 +19,7 @@ const QuerySchema = z.object({
   type: z.enum(['multi', 'movie', 'tv']).optional().default('multi'),
   page: z.coerce.number().int().min(1).max(500).optional().default(1),
   lang: z.string().optional(),
-  genre: z.string().optional(), // New: genre filter
+  genre: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -29,19 +30,22 @@ export async function GET(req: NextRequest) {
 
   const q = rawQ?.trim() || '';
   if (!q && !lang && !genre) return badRequest('Empty query and no filters');
-  const qNorm = q.toLowerCase();
   const likeExpr = q ? `%${q}%` : undefined;
   const langFilterExpr = lang ? `%"${lang}"%` : undefined;
-  const genreFilterExpr = genre ? `%"${genre}"%` : undefined; // New: genre filter expression
+  const genreFilterExpr = genre ? `%"${genre}"%` : undefined;
 
   try {
     const db = await getDb();
+    
+    // Check if requester is admin
+    const auth = await requireAdmin(req);
+    const isAdmin = auth.ok;
 
     // 1) DB lookup
-    let dbMovies: typeof movies.$inferSelect[] = [];
+    let dbMovies: any[] = [];
     if (type !== 'tv') {
-      let movieQuery = db
-        .selectDistinct({
+      let movieQuery = (db as any)
+        .select({
           id: movies.id,
           tmdbId: movies.tmdbId,
           imdbId: movies.imdbId,
@@ -71,13 +75,13 @@ export async function GET(req: NextRequest) {
       if (conditions.length > 0) {
         movieQuery = movieQuery.where(and(...conditions));
       }
-      dbMovies = await movieQuery.limit(20);
+      dbMovies = await movieQuery.limit(40);
     }
 
-    let dbShows: typeof tv.$inferSelect[] = [];
+    let dbShows: any[] = [];
     if (type !== 'movie') {
-      let tvQuery = db
-        .selectDistinct({
+      let tvQuery = (db as any)
+        .select({
           id: tv.id,
           tmdbId: tv.tmdbId,
           imdbId: tv.imdbId,
@@ -110,20 +114,20 @@ export async function GET(req: NextRequest) {
       if (conditions.length > 0) {
         tvQuery = tvQuery.where(and(...conditions));
       }
-      dbShows = await tvQuery.limit(20);
+      dbShows = await tvQuery.limit(40);
     }
 
-    // 2) TMDB lookup (in parallel)
-    const tmdbPath =
-      type === 'multi'
-        ? '/search/multi'
-        : type === 'movie'
-          ? '/search/movie'
-          : '/search/tv';
+    // 2) TMDB lookup (ONLY FOR ADMINS)
     let tmdbResults: TmdbListItem[] = [];
     let tmdbTotal = { total_pages: 0, total_results: 0, page };
-    // Skip TMDB search if only filtering by language
-    if (q) { 
+    
+    if (q && isAdmin) { 
+      const tmdbPath =
+        type === 'multi'
+          ? '/search/multi'
+          : type === 'movie'
+            ? '/search/movie'
+            : '/search/tv';
       try {
         const data = await tmdb<TmdbPaged<TmdbListItem>>(tmdbPath, {
           query: q,
@@ -143,45 +147,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3) Throttle & Logging
-    // search_logs: check for existing query and last_searched_at
-    const THROTTLE_MS = 5 * 60 * 1000;
-    const canLog = qNorm.length >= 3;
-    let isThrottled = false;
-
-    if (canLog) {
-      const existingLog = await db
-        .select({ lastSearchedAt: searchLogs.lastSearchedAt })
-        .from(searchLogs)
-        .where(eq(searchLogs.query, qNorm))
-        .limit(1);
-
-      if (existingLog.length > 0 && existingLog[0].lastSearchedAt) {
-        const diff = Date.now() - existingLog[0].lastSearchedAt.getTime();
-        if (diff < THROTTLE_MS) {
-          isThrottled = true;
-        }
-      }
-    }
-
-    // 4) If completely empty AND NOT throttled → search_logs handles general tracking.
-    // content_requests is now handled by a manual POST from the UI.
-    const totalHits = dbMovies.length + dbShows.length + tmdbResults.length;
-
-    // 5) Update search_logs if NOT throttled and query is present
-    if (canLog && !isThrottled && q) {
-      await db
-        .insert(searchLogs)
-        .values({ query: qNorm })
-        .onConflictDoUpdate({
-          target: searchLogs.query,
-          set: {
-            count: sql`${searchLogs.count} + 1`,
-            lastSearchedAt: sql`(unixepoch())`,
-          },
-        });
-    }
-
     // Build unified result list. DB rows first (with internal id), then TMDB.
     const dbTmdbIds = new Set<number>([
       ...dbMovies.map((m) => m.tmdbId).filter((x): x is number => x != null),
@@ -189,30 +154,36 @@ export async function GET(req: NextRequest) {
     ]);
 
     const dbItems = [
-      ...dbMovies.map((m) => ({
-        type: 'movie' as const,
-        id: m.id,
-        tmdb_id: m.tmdbId,
-        title: m.title,
-        overview: m.overview,
-        poster_url: tmdbImg(m.posterPath, 'w500'),
-        backdrop_url: tmdbImg(m.backdropPath, 'w780'),
-        rating: m.rating,
-        release_date: m.releaseDate,
-        in_db: true,
-      })),
-      ...dbShows.map((s) => ({
-        type: 'tv' as const,
-        id: s.id,
-        tmdb_id: s.tmdbId,
-        title: s.name,
-        overview: s.overview,
-        poster_url: tmdbImg(s.posterPath, 'w500'),
-        backdrop_url: tmdbImg(s.backdropPath, 'w780'),
-        rating: s.rating,
-        release_date: s.firstAirDate,
-        in_db: true,
-      })),
+      ...dbMovies.map((m) => {
+        const movieRow = m.movies ? m.movies : m;
+        return {
+          type: 'movie' as const,
+          id: movieRow.id,
+          tmdb_id: movieRow.tmdbId,
+          title: movieRow.title,
+          overview: movieRow.overview,
+          poster_url: tmdbImg(movieRow.posterPath, 'w500'),
+          backdrop_url: tmdbImg(movieRow.backdropPath, 'w780'),
+          rating: movieRow.rating,
+          release_date: movieRow.releaseDate,
+          in_db: true,
+        };
+      }),
+      ...dbShows.map((s) => {
+        const tvRow = s.tv ? s.tv : s;
+        return {
+          type: 'tv' as const,
+          id: tvRow.id,
+          tmdb_id: tvRow.tmdbId,
+          title: tvRow.name,
+          overview: tvRow.overview,
+          poster_url: tmdbImg(tvRow.posterPath, 'w500'),
+          backdrop_url: tmdbImg(tvRow.backdropPath, 'w780'),
+          rating: tvRow.rating,
+          release_date: tvRow.firstAirDate,
+          in_db: true,
+        };
+      }),
     ];
 
     const tmdbItems = tmdbResults
@@ -241,7 +212,6 @@ export async function GET(req: NextRequest) {
       query: q,
       ...tmdbTotal,
       results: [...dbItems, ...tmdbItems],
-      created_request: totalHits === 0 && qNorm.length >= 3,
     });
   } catch (err) {
     return serverError(err);

@@ -1,16 +1,17 @@
 /**
  * GET  /api/user/history — Continue-watching list, joined with content/episode metadata.
+ *   Filters out items already marked as watched.
  * POST /api/user/history
  *   Body: { movie_id?: number, episode_id?: number }
  *   (XOR — exactly one). Upserts on (user_id, movie_id) or (user_id, episode_id).
  */
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { eq, desc, inArray, sql } from 'drizzle-orm';
+import { eq, desc, inArray, sql, and, notExists, or, isNotNull } from 'drizzle-orm';
 import { ok, fail, parseJson, serverError } from '@/lib/http';
 import { requireUser } from '@/lib/user';
 import { getDb } from '@/db/client';
-import { history, movies, tv, episodes } from '@/db/schema';
+import { history, movies, tv, episodes, watched } from '@/db/schema';
 
 export const runtime = 'nodejs';
 
@@ -19,12 +20,27 @@ export async function GET(req: NextRequest) {
   if (!g.ok) return g.response;
   try {
     const db = await getDb();
+    
+    // Continue watching: played but NOT marked as watched
     const rows = await db
       .select()
       .from(history)
-      .where(eq(history.userId, g.user.id))
-      .orderBy(desc(history.lastWatchedAt))
-      .limit(50);
+      .where(and(
+        eq(history.userId, g.user.id),
+        notExists(
+          db.select()
+            .from(watched)
+            .where(and(
+              eq(watched.userId, g.user.id),
+              or(
+                and(eq(history.movieId, watched.movieId), isNotNull(history.movieId)),
+                and(eq(history.episodeId, watched.episodeId), isNotNull(history.episodeId))
+              )
+            ))
+        )
+      ))
+      .orderBy(desc(history.playedAt))
+      .limit(30);
 
     const movieIds = rows
       .map((r) => r.movieId)
@@ -64,7 +80,7 @@ export async function GET(req: NextRequest) {
             poster_url: m.posterPath
               ? `https://image.tmdb.org/t/p/w500${m.posterPath}`
               : null,
-            last_watched_at: r.lastWatchedAt,
+            last_watched_at: r.playedAt,
           };
         }
         if (r.episodeId !== null) {
@@ -84,7 +100,7 @@ export async function GET(req: NextRequest) {
             poster_url: show?.posterPath
               ? `https://image.tmdb.org/t/p/w500${show.posterPath}`
               : null,
-            last_watched_at: r.lastWatchedAt,
+            last_watched_at: r.playedAt,
           };
         }
         return null;
@@ -100,7 +116,6 @@ const PostSchema = z
   .object({
     movie_id: z.number().int().positive().optional(),
     episode_id: z.number().int().positive().optional(),
-    link_id: z.number().int().positive().optional(),
   })
   .refine(
     (d) =>
@@ -114,7 +129,7 @@ export async function POST(req: NextRequest) {
   if (!g.ok) return g.response;
   const parsed = await parseJson(req, PostSchema);
   if (!parsed.ok) return parsed.response;
-  const { movie_id, episode_id, link_id } = parsed.data;
+  const { movie_id, episode_id } = parsed.data;
 
   try {
     const db = await getDb();
@@ -126,13 +141,11 @@ export async function POST(req: NextRequest) {
         userId: g.user.id,
         movieId: movie_id ?? null,
         episodeId: episode_id ?? null,
-        linkId: link_id ?? null,
       })
       .onConflictDoUpdate({
         target: [history.userId, target],
         set: { 
-          lastWatchedAt: sql`(unixepoch())`,
-          linkId: link_id ?? null,
+          playedAt: sql`(unixepoch())`,
         },
       })
       .returning();

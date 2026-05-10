@@ -43,21 +43,46 @@ const passthrough: Extractor = async (u) => {
 /*                          Per-host extractors (TODO)                        */
 /* -------------------------------------------------------------------------- */
 
-// Example skeleton — fill in real logic per host:
-//
-// const vidsrc: Extractor = async (u) => {
-//   if (!u.hostname.endsWith('vidsrc.to')) return null;
-//   const html = await fetch(u.toString()).then((r) => r.text());
-//   const m = html.match(/file:\s*"([^"]+\.m3u8[^"]*)"/);
-//   if (!m) return null;
-//   return { stream_url: m[1], type: 'hls' };
-// };
+/** Scraper for player pages that define a `finalUrl` variable in JS. */
+const finalUrlScraper: Extractor = async (u) => {
+  // Add hosts that use this pattern
+  const supportedHosts = ['mrfooll.xyz'];
+  if (!supportedHosts.some(h => u.hostname.endsWith(h))) return null;
+
+  try {
+    const res = await fetch(u.toString(), {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+    });
+    if (!res.ok) return null;
+
+    const html = await res.text();
+    const PATTERN = /const finalUrl\s*=\s*['"]([^'"]+)['"]/;
+    const match = PATTERN.exec(html);
+    if (!match) return null;
+
+    const streamUrl = match[1].trim();
+    
+    // Determine type from extension
+    let type: ExtractResult['type'] = undefined;
+    if (streamUrl.includes('.m3u8')) type = 'hls';
+    else if (streamUrl.includes('.mp4')) type = 'mp4';
+    else if (streamUrl.includes('.mkv')) type = 'mkv';
+    else if (streamUrl.includes('.webm')) type = 'webm';
+
+    return {
+      stream_url: streamUrl,
+      type,
+      expires_at: Math.floor(Date.now() / 1000) + 6 * 60 * 60,
+    };
+  } catch (err) {
+    console.error('[extractor] Scrape failed:', err);
+    return null;
+  }
+};
 
 const EXTRACTORS: Extractor[] = [
+  finalUrlScraper,
   passthrough,
-  // vidsrc,
-  // streamtape,
-  // ...
 ];
 
 export async function extract(raw: string): Promise<ExtractResult | null> {

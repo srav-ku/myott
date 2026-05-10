@@ -37,6 +37,7 @@ export function MediaRow({ title, endpoint, kind }: Props) {
       // canonical: { results: [...] } from Phase 3 list endpoints
       const arr =
         ((r.data.results as Item[]) ??
+          (r.data.items as Item[]) ??
           (r.data.movies as Item[]) ??
           (r.data.tv as Item[]) ??
           []) ?? [];

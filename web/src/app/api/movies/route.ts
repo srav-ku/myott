@@ -20,17 +20,18 @@ import {
 } from '@/lib/tmdb';
 import { getDb } from '@/db/client';
 import { movies } from '@/db/schema';
-import { sql } from 'drizzle-orm';
+import { sql, desc } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
-
 const CATEGORIES = [
   'trending',
 ] as const;
 
 const QuerySchema = z.object({
+  source: z.enum(['local', 'tmdb']).optional().default('tmdb'),
   category: z.enum(CATEGORIES).optional().default('trending'),
   page: z.coerce.number().int().min(1).max(500).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   genre: z.coerce.number().int().positive().optional(),
   year: z.coerce.number().int().min(1888).max(2100).optional(),
   language: z.string().min(2).max(5).optional(),
@@ -44,7 +45,34 @@ export async function GET(req: NextRequest) {
   const q = parsed.data;
 
   try {
+    const db = await getDb();
+
+    if (q.source === 'local') {
+      const rows = await db
+        .select()
+        .from(movies)
+        .orderBy(desc(movies.createdAt))
+        .limit(q.limit)
+        .offset((q.page - 1) * q.limit);
+
+      return ok({
+        page: q.page,
+        results: rows.map(m => ({
+          id: m.id,
+          tmdb_id: m.tmdbId,
+          type: 'movie' as const,
+          title: m.title,
+          overview: m.overview,
+          poster_url: tmdbImg(m.posterPath, 'w500'),
+          backdrop_url: tmdbImg(m.backdropPath, 'w780'),
+          rating: m.rating,
+          release_date: m.releaseDate,
+        }))
+      });
+    }
+
     let path: string;
+
     const params: Record<string, string | number | undefined> = {
       page: q.page,
     };
@@ -71,7 +99,6 @@ export async function GET(req: NextRequest) {
     const data = await tmdb<TmdbPaged<TmdbListItem>>(path, params);
     
     // 2. Bulk-persist to DB to ensure DB-first availability for subsequent calls
-    const db = await getDb();
     if (data.results.length > 0) {
       const values = data.results.map((m) => ({
         tmdbId: m.id,

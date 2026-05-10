@@ -20,8 +20,6 @@ type Result = {
 type Stats = {
   moviesWithoutLinks: number;
   tvMissingEpisodes: number;
-  pendingReports: number;
-  pendingRequests: number;
 };
 
 function ContentDashboard() {
@@ -29,6 +27,7 @@ function ContentDashboard() {
   const [tab, setTab] = useState<'movie' | 'tv'>(
     (sp.get('tab') as 'tv') === 'tv' ? 'tv' : 'movie',
   );
+  const [source, setSource] = useState<'local' | 'tmdb'>('local');
   const [q, setQ] = useState('');
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,8 +42,8 @@ function ContentDashboard() {
     setLoading(true);
     const ep =
       tab === 'movie'
-        ? '/api/movies?source=trending&limit=24'
-        : '/api/tv?source=trending&limit=24';
+        ? `/api/movies?source=${source}&limit=24`
+        : `/api/tv?source=${source}&limit=24`;
     const r = await api<{ results: Result[] }>(ep);
     setLoading(false);
     if (r.ok) {
@@ -75,12 +74,12 @@ function ContentDashboard() {
     } else {
       void loadDefault();
     }
-  }, [tab]);
+  }, [tab, source]);
 
   return (
     <div className="space-y-6">
       {/* Minimal Stats */}
-      <div className="flex flex-wrap gap-x-6 gap-y-2 text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-dim)] border-b border-[var(--color-border)] pb-4">
+      <div className="flex flex-wrap gap-x-6 gap-y-2 text-[10px] font-bold uppercase tracking-widest text-text-dim border-b border-border pb-4">
         <div className="flex gap-1.5 items-center">
           <span className="text-white bg-white/10 px-1.5 py-0.5 rounded">{stats?.moviesWithoutLinks ?? '..'}</span> 
           Movies Missing Links
@@ -89,32 +88,45 @@ function ContentDashboard() {
           <span className="text-white bg-white/10 px-1.5 py-0.5 rounded">{stats?.tvMissingEpisodes ?? '..'}</span> 
           TV Missing Links
         </div>
-        <div className="flex gap-1.5 items-center">
-          <span className="text-white bg-white/10 px-1.5 py-0.5 rounded">{stats?.pendingReports ?? '..'}</span> 
-          Reports
-        </div>
-        <div className="flex gap-1.5 items-center">
-          <span className="text-white bg-white/10 px-1.5 py-0.5 rounded">{stats?.pendingRequests ?? '..'}</span> 
-          Requests
-        </div>
       </div>
 
       <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="inline-flex rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] p-1">
-          {(['movie', 'tv'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-all ${
-                tab === t
-                  ? 'bg-[var(--color-brand)] text-white'
-                  : 'text-[var(--color-text-dim)] hover:text-white'
-              }`}
-            >
-              {t === 'movie' ? <Film size={14} /> : <Tv size={14} />}
-              {t === 'movie' ? 'Movies' : 'TV'}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-4">
+          <div className="inline-flex rounded-lg bg-surface border border-border p-1">
+            {(['movie', 'tv'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-all ${
+                  tab === t
+                    ? 'bg-brand text-white'
+                    : 'text-text-dim hover:text-white'
+                }`}
+              >
+                {t === 'movie' ? <Film size={14} /> : <Tv size={14} />}
+                {t === 'movie' ? 'Movies' : 'TV'}
+              </button>
+            ))}
+          </div>
+
+          <div className="inline-flex rounded-lg bg-surface border border-border p-1">
+            {[
+              { id: 'local', label: 'Library' },
+              { id: 'tmdb', label: 'Discovery' },
+            ].map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setSource(s.id as any)}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  source === s.id
+                    ? 'bg-purple-600 text-white'
+                    : 'text-text-dim hover:text-white'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <form
@@ -126,13 +138,13 @@ function ContentDashboard() {
         >
           <Search
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-dim)]"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim"
           />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={`Search ${tab === 'movie' ? 'movies' : 'TV shows'}…`}
-            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg pl-9 pr-3 py-2 text-sm outline-none focus:border-[var(--color-brand)] transition-all"
+            className="w-full bg-surface border border-border rounded-lg pl-9 pr-3 py-2 text-sm outline-none focus:border-brand transition-all"
           />
         </form>
       </div>
@@ -141,7 +153,7 @@ function ContentDashboard() {
 
       {loading ? (
         <div className="grid place-items-center py-20">
-          <Loader2 className="animate-spin text-[var(--color-brand)]" />
+          <Loader2 className="animate-spin text-brand" />
         </div>
       ) : (
         <div className="grid gap-2">
@@ -158,9 +170,9 @@ function ContentDashboard() {
               <Link
                 key={`${k}-${r.tmdb_id}`}
                 href={href}
-                className="flex items-center gap-3 p-2 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] hover:border-white group transition-all"
+                className="flex items-center gap-3 p-2 bg-surface rounded-xl border border-border hover:border-white group transition-all relative"
               >
-                <div className="w-10 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-bg)]">
+                <div className="w-10 h-14 shrink-0 rounded-lg overflow-hidden bg-bg">
                   {r.poster_url && (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
@@ -171,13 +183,20 @@ function ContentDashboard() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold truncate">{title}</div>
-                  <div className="text-xs text-[var(--color-text-dim)]">
+                  <div className="flex items-center gap-2">
+                    <div className="font-bold truncate">{title}</div>
+                    {source === 'tmdb' && (r as any).in_db && (
+                      <span className="text-[8px] bg-green-500/20 text-green-400 px-1 py-0.5 rounded border border-green-500/30 uppercase font-black">
+                        In Library
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-text-dim">
                     {k === 'movie' ? 'Movie' : 'TV'} · TMDB #{r.tmdb_id}
                     {year && ` · ${year}`}
                   </div>
                 </div>
-                <div className="text-[var(--color-text-dim)] group-hover:text-white px-2">
+                <div className="text-text-dim group-hover:text-white px-2">
                   <ArrowRight size={18} />
                 </div>
               </Link>
@@ -191,7 +210,7 @@ function ContentDashboard() {
 
 export default function AdminPage() {
   return (
-    <Suspense fallback={<div className="flex items-center gap-2 text-[var(--color-text-dim)]"><Loader2 className="animate-spin" size={16} /> Loading content...</div>}>
+    <Suspense fallback={<div className="flex items-center gap-2 text-text-dim"><Loader2 className="animate-spin" size={16} /> Loading content...</div>}>
       <ContentDashboard />
     </Suspense>
   );

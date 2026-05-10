@@ -12,6 +12,7 @@ import { getDb } from '@/db/client';
 import { links } from '@/db/schema';
 import { getOrCreateMovieByTmdbId } from '@/lib/persist';
 import { tmdbImg } from '@/lib/tmdb';
+import { requireUser } from '@/lib/user';
 
 export const runtime = 'nodejs';
 
@@ -30,16 +31,24 @@ export async function GET(
     if (!movie) return notFound('Movie not found');
 
     const db = await getDb();
-    const allLinks = await db
-      .select()
-      .from(links)
-      .where(eq(links.movieId, movie.id));
-    const movieLinks = allLinks.map((l) => ({
-      id: l.id,
-      quality: l.quality,
-      type: l.type,
-      languages: l.languages,
-    }));
+    
+    // Stealth Mode Check
+    const guard = await requireUser(_req);
+    const isStealthOn = guard.ok && guard.user.stealthMode;
+
+    let movieLinks: any[] = [];
+    if (isStealthOn) {
+      const allLinks = await db
+        .select()
+        .from(links)
+        .where(eq(links.movieId, movie.id));
+      movieLinks = allLinks.map((l) => ({
+        id: l.id,
+        quality: l.quality,
+        type: l.type,
+        languages: l.languages,
+      }));
+    }
 
     return ok({
       id: movie.id,

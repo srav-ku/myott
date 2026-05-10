@@ -209,6 +209,13 @@ export const users = sqliteTable(
     photoUrl: text('photo_url'),
     authProvider: text('auth_provider', { enum: ['google', 'guest'] }).notNull(),
     isAdmin: integer('is_admin', { mode: 'boolean' }).notNull().default(false),
+    
+    /** Stealth Mode fields */
+    stealthMode: integer('stealth_mode', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    stealthEnabledAt: integer('stealth_enabled_at', { mode: 'timestamp' }),
+
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .default(sql`(unixepoch())`),
@@ -222,9 +229,6 @@ export const users = sqliteTable(
 /*                                  WATCHLIST                                 */
 /* -------------------------------------------------------------------------- */
 
-export const CONTENT_TYPES = ['movie', 'tv'] as const;
-export type ContentType = (typeof CONTENT_TYPES)[number];
-
 export const watchlist = sqliteTable(
   'watchlist',
   {
@@ -232,7 +236,7 @@ export const watchlist = sqliteTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    contentType: text('content_type', { enum: CONTENT_TYPES }).notNull(),
+    contentType: text('content_type', { enum: ['movie', 'tv'] }).notNull(),
     contentId: integer('content_id').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
@@ -265,10 +269,7 @@ export const history = sqliteTable(
     episodeId: integer('episode_id').references(() => episodes.id, {
       onDelete: 'cascade',
     }),
-    linkId: integer('link_id').references(() => links.id, {
-      onDelete: 'set null',
-    }),
-    lastWatchedAt: integer('last_watched_at', { mode: 'timestamp' })
+    playedAt: integer('last_watched_at', { mode: 'timestamp' })
       .notNull()
       .default(sql`(unixepoch())`),
   },
@@ -277,8 +278,8 @@ export const history = sqliteTable(
       'history_movie_or_episode_xor',
       sql`((${t.movieId} IS NOT NULL AND ${t.episodeId} IS NULL) OR (${t.movieId} IS NULL AND ${t.episodeId} IS NOT NULL))`,
     ),
-    userMovieUniq: uniqueIndex('history_user_movie_unique').on(t.userId, t.movieId),
-    userEpisodeUniq: uniqueIndex('history_user_episode_unique').on(
+    movieUniq: uniqueIndex('history_user_movie_unique').on(t.userId, t.movieId),
+    episodeUniq: uniqueIndex('history_user_episode_unique').on(
       t.userId,
       t.episodeId,
     ),
@@ -287,177 +288,17 @@ export const history = sqliteTable(
 );
 
 /* -------------------------------------------------------------------------- */
-/*                                   REPORTS                                  */
+/*                                 COLLECTIONS                                */
 /* -------------------------------------------------------------------------- */
 
-export const REPORT_TARGETS = ['movie', 'episode'] as const;
-export const REPORT_ISSUES = [
-  'broken_1080p',
-  'broken_720p',
-  'no_link',
-  'wrong_data',
-  'other',
-] as const;
-export const REPORT_STATUS = ['open', 'resolved'] as const;
-
-export const reports = sqliteTable(
-  'reports',
+export const collections = sqliteTable(
+  'collections',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    contentType: text('content_type', { enum: REPORT_TARGETS }).notNull(),
-    contentId: integer('content_id').notNull(),
-    issueType: text('issue_type', { enum: REPORT_ISSUES }).notNull(),
-    message: text('message'),
-    status: text('status', { enum: REPORT_STATUS }).notNull().default('open'),
-    reportedBy: text('reported_by'),
-    createdAt: integer('created_at', { mode: 'timestamp' })
+    userId: text('user_id')
       .notNull()
-      .default(sql`(unixepoch())`),
-    resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
-  },
-  (t) => ({
-    statusIdx: index('reports_status_idx').on(t.status),
-    contentIdx: index('reports_content_idx').on(t.contentType, t.contentId),
-    uniqReport: uniqueIndex('reports_uniq_idx').on(
-      t.contentType,
-      t.contentId,
-      t.issueType,
-      t.status,
-    ),
-  }),
-);
-
-/* -------------------------------------------------------------------------- */
-/*                                SEARCH LOGS                                 */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Deduped search log.
- *  - Only meaningful queries (length >= 3) are stored.
- *  - Repeated queries bump `count` and `lastSearchedAt` instead of inserting.
- */
-export const searchLogs = sqliteTable(
-  'search_logs',
-  {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    /** Lowercased, trimmed query string. */
-    query: text('query').notNull(),
-    count: integer('count').notNull().default(1),
-    lastSearchedAt: integer('last_searched_at', { mode: 'timestamp' })
-      .notNull()
-      .default(sql`(unixepoch())`),
-    createdAt: integer('created_at', { mode: 'timestamp' })
-      .notNull()
-      .default(sql`(unixepoch())`),
-  },
-  (t) => ({
-    queryUniq: uniqueIndex('search_logs_query_unique').on(t.query),
-    lastSearchedIdx: index('search_logs_last_searched_idx').on(t.lastSearchedAt),
-  }),
-);
-
-/* -------------------------------------------------------------------------- */
-/*                              CONTENT REQUESTS                              */
-/* -------------------------------------------------------------------------- */
-
-export const REQUEST_STATUS = ['pending', 'added', 'ignored'] as const;
-
-/**
- * Created when a search returns 0 results — these are real "missing content"
- * signals admin acts on. Deduped by query.
- */
-export const contentRequests = sqliteTable(
-  'content_requests',
-  {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    query: text('query'),
-    tmdbId: integer('tmdb_id'),
-    contentType: text('content_type', { enum: ['movie', 'tv'] }),
-    title: text('title'),
-    reason: text(
-      'reason',
-      { enum: ['not_found', 'missing_links'] },
-    ).default('not_found'),
-
-    count: integer('count').notNull().default(1),
-    status: text('status', { enum: REQUEST_STATUS })
-      .notNull()
-      .default('pending'),
-    lastRequestedAt: integer('last_requested_at', { mode: 'timestamp' })
-      .notNull()
-      .default(sql`(unixepoch())`),
-    createdAt: integer('created_at', { mode: 'timestamp' })
-      .notNull()
-      .default(sql`(unixepoch())`),
-  },
-  (t) => ({
-    queryUniq: uniqueIndex('content_requests_query_unique').on(t.query),
-    tmdbUniq: uniqueIndex('content_requests_tmdb_unique').on(
-      t.tmdbId,
-      t.contentType,
-    ),
-    statusIdx: index('content_requests_status_idx').on(t.status),
-  }),
-);
-
-/* -------------------------------------------------------------------------- */
-/*                                   UPDATES                                  */
-/* -------------------------------------------------------------------------- */
-
-export const UPDATE_TYPES = ['info', 'release', 'alert'] as const;
-export type UpdateType = (typeof UPDATE_TYPES)[number];
-
-export const updates = sqliteTable(
-  'updates',
-  {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    message: text('message').notNull(),
-    type: text('type', { enum: UPDATE_TYPES }).notNull().default('info'),
-    createdAt: integer('created_at', { mode: 'timestamp' })
-      .notNull()
-      .default(sql`(unixepoch())`),
-    expiresAt: integer('expires_at', { mode: 'timestamp' }),
-  },
-  (t) => ({
-    createdIdx: index('updates_created_idx').on(t.createdAt),
-    expiresIdx: index('updates_expires_idx').on(t.expiresAt),
-  }),
-);
-
-/* -------------------------------------------------------------------------- */
-/*                                     ADS                                    */
-/* -------------------------------------------------------------------------- */
-
-export const AD_POSITIONS = [
-  'home_banner',
-  'search_inline',
-  'detail_bottom',
-  'player_overlay',
-] as const;
-export type AdPosition = (typeof AD_POSITIONS)[number];
-
-export const AD_TYPES = ['banner', 'rewarded', 'interstitial'] as const;
-export type AdType = (typeof AD_TYPES)[number];
-
-export const AD_PROVIDERS = ['custom', 'admob', 'applovin'] as const;
-export type AdProvider = (typeof AD_PROVIDERS)[number];
-
-export const ads = sqliteTable(
-  'ads',
-  {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    position: text('position', { enum: AD_POSITIONS }).notNull(),
-    type: text('type', { enum: AD_TYPES }).notNull(),
-    provider: text('provider', { enum: AD_PROVIDERS }).notNull(),
-
-    imageUrl: text('image_url'),
-    redirectUrl: text('redirect_url'),
-    unitId: text('unit_id'),
-
-    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(false),
-    priority: integer('priority').notNull().default(0),
-    frequencyLimit: integer('frequency_limit').notNull().default(0),
-
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .default(sql`(unixepoch())`),
@@ -466,9 +307,70 @@ export const ads = sqliteTable(
       .default(sql`(unixepoch())`),
   },
   (t) => ({
-    positionIdx: index('ads_position_idx').on(t.position),
-    isActiveIdx: index('ads_is_active_idx').on(t.isActive),
-    priorityIdx: index('ads_priority_idx').on(t.priority),
+    userIdx: index('collections_user_idx').on(t.userId),
+  }),
+);
+
+export const collectionItems = sqliteTable(
+  'collection_items',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    collectionId: integer('collection_id')
+      .notNull()
+      .references(() => collections.id, { onDelete: 'cascade' }),
+    movieId: integer('movie_id').references(() => movies.id, {
+      onDelete: 'cascade',
+    }),
+    tvId: integer('tv_id').references(() => tv.id, { onDelete: 'cascade' }),
+    orderIndex: integer('order_index').notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({
+    collIdx: index('collection_items_coll_idx').on(t.collectionId),
+    xorCheck: check(
+      'collection_items_movie_or_tv_xor',
+      sql`((${t.movieId} IS NOT NULL AND ${t.tvId} IS NULL) OR (${t.movieId} IS NULL AND ${t.tvId} IS NOT NULL))`,
+    ),
+  }),
+);
+
+/* -------------------------------------------------------------------------- */
+/*                                   WATCHED                                  */
+/* -------------------------------------------------------------------------- */
+
+export const watched = sqliteTable(
+  'watched',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    movieId: integer('movie_id').references(() => movies.id, {
+      onDelete: 'cascade',
+    }),
+    episodeId: integer('episode_id').references(() => episodes.id, {
+      onDelete: 'cascade',
+    }),
+    // TV metadata for quick lookup
+    seasonNumber: integer('season_number'),
+    episodeNumber: integer('episode_number'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({
+    xorCheck: check(
+      'watched_movie_or_episode_xor',
+      sql`((${t.movieId} IS NOT NULL AND ${t.episodeId} IS NULL) OR (${t.movieId} IS NULL AND ${t.episodeId} IS NOT NULL))`,
+    ),
+    movieUniq: uniqueIndex('watched_user_movie_unique').on(t.userId, t.movieId),
+    episodeUniq: uniqueIndex('watched_user_episode_unique').on(
+      t.userId,
+      t.episodeId,
+    ),
+    userIdx: index('watched_user_idx').on(t.userId),
   }),
 );
 
@@ -485,9 +387,7 @@ export const schema = {
   users,
   watchlist,
   history,
-  reports,
-  searchLogs,
-  contentRequests,
-  updates,
-  ads,
+  collections,
+  collectionItems,
+  watched,
 };

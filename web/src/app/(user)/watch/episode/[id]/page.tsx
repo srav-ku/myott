@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Player } from '@/components/Player';
-import { ReportButton } from '@/components/ReportButton';
 import { ChevronLeft, Loader2, AlertCircle } from 'lucide-react';
 
 type LinkRow = {
@@ -144,9 +143,6 @@ function Inner({ id }: { id: number }) {
           ))}
         </div>
       )}
-      <div className="pt-2">
-        <ReportButton contentType="episode" contentId={id} />
-      </div>
     </div>
   );
 }

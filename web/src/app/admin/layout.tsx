@@ -37,10 +37,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const sidebarItems = [
     { label: 'Content', href: '/admin', icon: Film },
-    { label: 'Reports', href: '/admin/reports', icon: Flag },
-    { label: 'Requests', href: '/admin/requests', icon: MessageSquare },
-    { label: 'Updates', href: '/admin/updates', icon: Megaphone },
-    { label: 'Ads', href: '/admin/ads', icon: LayoutDashboard },
   ];
 
   return (

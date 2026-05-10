@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '@/db/client';
 import { links } from '@/db/schema';
 import { callExtractor } from '@/lib/extractor';
+import { requireUser } from '@/lib/user';
 
 export const runtime = 'nodejs';
 
@@ -16,10 +17,27 @@ type StreamResponse = {
 };
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ linkId: string }> },
 ) {
   try {
+    const guard = await requireUser(req);
+    if (!guard.ok) {
+      return NextResponse.json<StreamResponse>({
+        url: null,
+        type: null,
+        error: 'UNAUTHORIZED',
+      }, { status: 401 });
+    }
+
+    if (!guard.user.stealthMode) {
+      return NextResponse.json<StreamResponse>({
+        url: null,
+        type: null,
+        error: 'STEALTH_REQUIRED',
+      }, { status: 403 });
+    }
+
     const { linkId: raw } = await ctx.params;
     const linkId = Number(raw);
 

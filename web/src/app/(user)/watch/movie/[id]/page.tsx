@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Player } from '@/components/Player';
-import { ReportButton } from '@/components/ReportButton';
 import { ChevronLeft, Loader2, AlertCircle } from 'lucide-react';
 
 type Movie = {
@@ -115,9 +114,6 @@ function Inner({ id }: { id: number }) {
         <Player src={stream.url} poster={movie?.backdrop_url ?? null} />
       )}
       <QualityRow links={links} activeLink={activeLink} onPick={setActiveLink} />
-      <div className="flex gap-2 pt-2">
-        <ReportButton contentType="movie" contentId={id} />
-      </div>
     </div>
   );
 }

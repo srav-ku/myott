@@ -40,10 +40,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const r = await api<{
       isAdmin: boolean;
       adminMode: 'open' | 'restricted';
+      user: { stealthMode: boolean };
     }>('/api/user/me');
     if (r.ok) {
       setIsAdmin(r.data.isAdmin);
       setAdminMode(r.data.adminMode);
+      
+      // Update stored user with stealthMode from backend
+      if (stored.stealthMode !== r.data.user.stealthMode) {
+        const updated = { ...stored, stealthMode: r.data.user.stealthMode };
+        writeStoredUser(updated);
+        setUser(updated);
+      }
     } else if (r.status === 401) {
       // Token probably expired or invalid
       writeStoredUser(null);
@@ -56,11 +64,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (fbUser) => {
       if (fbUser) {
         const token = await fbUser.getIdToken();
+        const stored = readStoredUser();
         const u: StoredUser = {
           uid: fbUser.uid,
           email: fbUser.email || '',
           displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
           token,
+          stealthMode: stored?.uid === fbUser.uid ? stored.stealthMode : false,
         };
         writeStoredUser(u);
         await refresh();

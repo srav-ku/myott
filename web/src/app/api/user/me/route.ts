@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
       email: guard.user.email,
       displayName: guard.user.displayName,
       authProvider: guard.user.authProvider,
+      stealthMode: guard.user.stealthMode,
       createdAt: guard.user.createdAt,
     },
     isAdmin,

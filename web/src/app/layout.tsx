@@ -12,11 +12,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <AdProvider>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
-        </AdProvider>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,9 +1,10 @@
 import { getDb } from '@/db/client';
 import { ads } from '@/db/schema';
-import { desc } from 'drizzle-orm';
+import { desc, eq, and } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin';
 import { fail } from '@/lib/http';
+import { AD_CONFIG } from '@/lib/ad-config';
 
 export const runtime = 'nodejs';
 
@@ -52,6 +53,27 @@ export async function POST(req: Request) {
     }
 
     const db = await getDb();
+
+    // 1. Validate max ads per position
+    const existingInPos = await db
+      .select()
+      .from(ads)
+      .where(and(eq(ads.position, position), eq(ads.isActive, true)));
+    
+    if (isActive && existingInPos.length >= AD_CONFIG.MAX_ADS_PER_POSITION) {
+      return fail(`Max ${AD_CONFIG.MAX_ADS_PER_POSITION} active ads allowed for ${position}`, 400);
+    }
+
+    // 2. Validate priority conflict
+    const priorityConflict = await db
+      .select()
+      .from(ads)
+      .where(and(eq(ads.position, position), eq(ads.priority, priority ?? 0)))
+      .limit(1);
+    
+    if (priorityConflict.length > 0) {
+      return fail(`Priority ${priority ?? 0} is already used in ${position}`, 400);
+    }
     
     const result = await db
       .insert(ads)

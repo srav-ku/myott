@@ -1,13 +1,11 @@
 'use client';
 import { useEffect, useState, use } from 'react';
 import { api } from '@/lib/api';
-import { WatchlistButton } from '@/components/WatchlistButton';
-import { ReportButton } from '@/components/ReportButton';
+import { WatchedButton } from '@/components/WatchedButton';
+import { CollectionManager } from '@/components/CollectionManager';
 import { StreamLauncher } from '@/components/StreamLauncher';
-import { MissingLinksRequest } from '@/components/MissingLinksRequest';
 import { Loader2, Star, Calendar, Clock } from 'lucide-react';
-import AdRenderer from '@/components/AdRenderer';
-import Link from 'next/link'; // Import Link for navigation
+import Link from 'next/link';
 
 type LinkRow = {
   id: number;
@@ -57,7 +55,7 @@ export default function MoviePage({
   if (err) {
     return (
       <div className="px-6 py-12 text-center">
-        <div className="text-[var(--color-brand)] mb-2">{err}</div>
+        <div className="text-brand mb-2">{err}</div>
       </div>
     );
   }
@@ -82,7 +80,7 @@ export default function MoviePage({
               alt=""
               className="w-full h-full object-cover opacity-30"
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--color-bg)]/80 to-[var(--color-bg)]" />
+            <div className="absolute inset-0 bg-linear-to-b from-transparent via-bg/80 to-bg" />
           </div>
         )}
         <div className="px-4 sm:px-6 pt-8 flex flex-col md:flex-row gap-6">
@@ -92,14 +90,14 @@ export default function MoviePage({
               <img
                 src={movie.poster_url}
                 alt={movie.title}
-                className="w-full rounded-lg shadow-2xl border border-[var(--color-border)]"
+                className="w-full rounded-lg shadow-2xl border border-border"
               />
             </div>
           )}
           <div className="flex-1 space-y-4">
             <div>
               <h1 className="text-3xl sm:text-4xl font-bold">{movie.title}</h1>
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--color-text-dim)]">
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-dim">
                 {movie.release_year && (
                   <span className="flex items-center gap-1">
                     <Calendar size={14} /> {movie.release_year}
@@ -139,7 +137,7 @@ export default function MoviePage({
                 if (allLangs.size === 0) return null;
                 return (
                   <div className="mt-2 flex flex-wrap gap-1.5 items-center">
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--color-text-dim)] mr-1">
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-text-dim mr-1">
                       Languages:
                     </span>
                     {Array.from(allLangs)
@@ -158,7 +156,7 @@ export default function MoviePage({
               })()}
             </div>
             {movie.overview && (
-              <p className="text-[var(--color-text)] max-w-3xl leading-relaxed">
+              <p className="text-text max-w-3xl leading-relaxed">
                 {movie.overview}
               </p>
             )}
@@ -169,24 +167,12 @@ export default function MoviePage({
               contentType="movie"
             />
 
-            {links.length === 0 && (
-              <div className="pt-4 max-w-xl">
-                <MissingLinksRequest
-                  tmdbId={movie.tmdb_id}
-                  contentType="movie"
-                  title={movie.title}
-                />
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2 pt-2">
-              <WatchlistButton kind="movie" contentId={movie.id} />
-              <ReportButton contentType="movie" contentId={movie.id} />
+            <div className="flex flex-wrap gap-2 pt-4">
+              <WatchedButton movieId={movie.id} />
+              <CollectionManager movieId={movie.id} />
             </div>
           </div>
         </div>
-      </div>
-      <div className="px-4 sm:px-6 pb-12">
-        <AdRenderer position="detail_bottom" />
       </div>
     </div>
   );

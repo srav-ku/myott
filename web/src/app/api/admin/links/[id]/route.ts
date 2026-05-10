@@ -69,6 +69,16 @@ export async function PATCH(
 
   try {
     const db = await getDb();
+
+    // Seed missing languages
+    if (patch.languages) {
+      const { languages } = await import('@/db/schema');
+      const langs = patch.languages as string[];
+      for (const lang of langs) {
+        await db.insert(languages).values({ name: lang }).onConflictDoNothing();
+      }
+    }
+
     const updated = await db
       .update(links)
       .set(patch)

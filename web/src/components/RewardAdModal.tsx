@@ -1,11 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { X, Loader2, Play } from 'lucide-react';
+import { api } from '@/lib/api';
 
 export function RewardAdModal({ 
+  adId,
   onComplete, 
   onClose 
 }: { 
+  adId?: number;
   onComplete: () => void; 
   onClose: () => void;
 }) {
@@ -13,20 +16,35 @@ export function RewardAdModal({
   const [timeLeft, setTimeLeft] = useState(15); // 15 seconds for custom rewarded ad
 
   useEffect(() => {
+    // Log impression
+    void api('/api/ads/event', {
+      method: 'POST',
+      body: JSON.stringify({ adId, type: 'impression' }),
+    });
+
     // Simulate ad loading
     const timer = setTimeout(() => setLoading(false), 1200);
     return () => clearTimeout(timer);
-  }, []);
+  }, [adId]);
+
+  async function handleComplete() {
+    // Log reward completed
+    await api('/api/ads/event', {
+      method: 'POST',
+      body: JSON.stringify({ adId, type: 'reward_completed' }),
+    });
+    onComplete();
+  }
 
   useEffect(() => {
     if (loading) return;
     if (timeLeft <= 0) {
-      onComplete();
+      handleComplete();
       return;
     }
     const timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
     return () => clearInterval(timer);
-  }, [loading, timeLeft, onComplete]);
+  }, [loading, timeLeft]);
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-black/90 backdrop-blur-sm p-4">

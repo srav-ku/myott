@@ -3,8 +3,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api, tmdbPoster } from '@/lib/api';
 import { MediaCard } from '@/components/MediaCard';
-import AdRenderer from '@/components/AdRenderer';
-import { Check, Loader2, Send, Search } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 
 type SearchItem = {
   type: 'movie' | 'tv';
@@ -15,52 +14,6 @@ type SearchItem = {
   release_date?: string | null;
   in_db: boolean;
 };
-
-function RequestContentButton({ query }: { query: string }) {
-  const [status, setStatus] = useState<'idle' | 'busy' | 'done'>('idle');
-
-  async function handleRequest() {
-    if (query.length < 3) return;
-    setStatus('busy');
-    const r = await api('/api/content-requests', {
-      method: 'POST',
-      body: JSON.stringify({ query }),
-    });
-    if (r.ok) {
-      setStatus('done');
-    } else {
-      setStatus('idle');
-      alert(r.error || 'Failed to submit request');
-    }
-  }
-
-  if (query.length < 3) return null;
-
-  return (
-    <button
-      onClick={handleRequest}
-      disabled={status !== 'idle'}
-      className="flex items-center gap-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] disabled:bg-green-600 disabled:opacity-90 transition-colors rounded-full px-6 py-2.5 font-medium text-white shadow-lg shadow-brand/20"
-    >
-      {status === 'busy' ? (
-        <>
-          <Loader2 size={18} className="animate-spin" />
-          Sending...
-        </>
-      ) : status === 'done' ? (
-        <>
-          <Check size={18} />
-          Request submitted
-        </>
-      ) : (
-        <>
-          <Send size={18} />
-          Request this content
-        </>
-      )}
-    </button>
-  );
-}
 
 function SearchInner() {
   const sp = useSearchParams();
@@ -141,19 +94,19 @@ function SearchInner() {
   const hasAnyFilter = q || lang || genre;
 
   return (
-    <div className="px-4 sm:px-6 space-y-5">
+    <div className="px-4 sm:px-6 space-y-5 pb-20">
       <h1 className="text-2xl font-semibold">
         {q ? (
           <>
-            Search results for <span className="text-[var(--color-brand)]">&ldquo;{q}&rdquo;</span>
+            Search results for <span className="text-brand">&ldquo;{q}&rdquo;</span>
           </>
         ) : lang ? (
           <>
-            Results in <span className="text-[var(--color-brand)]">{lang}</span>
+            Results in <span className="text-brand">{lang}</span>
           </>
         ) : genre ? (
           <>
-            <span className="text-[var(--color-brand)]">{genre}</span> titles
+            <span className="text-brand">{genre}</span> titles
           </>
         ) : (
           'Search'
@@ -161,7 +114,7 @@ function SearchInner() {
       </h1>
 
       {!hasAnyFilter ? (
-        <div className="flex flex-col items-center justify-center py-20 text-[var(--color-text-dim)]">
+        <div className="flex flex-col items-center justify-center py-20 text-text-dim">
           <Search size={48} className="mb-4 opacity-20" />
           <p>Type a title in the search bar above.</p>
         </div>
@@ -172,23 +125,22 @@ function SearchInner() {
         </div>
       ) : loading ? (
         <div className="space-y-5">
-          <div className="flex items-center gap-2 text-sm text-[var(--color-text-dim)]">
+          <div className="flex items-center gap-2 text-sm text-text-dim">
             <Loader2 size={16} className="animate-spin" />
-            Searching...
+            Searching library...
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
             {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="aspect-[2/3] skeleton rounded-lg" />
+              <div key={i} className="aspect-2/3 skeleton rounded-lg" />
             ))}
           </div>
         </div>
       ) : items && items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[var(--color-border)] rounded-2xl bg-[var(--color-surface)]/30">
-          <div className="text-lg font-medium mb-1">No results found</div>
-          <p className="text-[var(--color-text-dim)] mb-6 max-w-xs">
-            We couldn&apos;t find anything matching your filters. {q && 'Would you like to request it?'}
+        <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-border rounded-3xl bg-surface/30">
+          <div className="text-2xl font-bold mb-2">No results found</div>
+          <p className="text-text-dim max-w-sm">
+            We couldn&apos;t find anything matching your filters in the library.
           </p>
-          {q && <RequestContentButton query={q} />}
         </div>
       ) : items ? (
         <div className="space-y-10">
@@ -201,9 +153,9 @@ function SearchInner() {
                 {movies.length > 0 && (
                   <div className="space-y-4">
                     <h2 className="text-xl font-semibold flex items-center gap-2">
-                      <span className="w-1.5 h-6 bg-[var(--color-brand)] rounded-full" />
+                      <span className="w-1.5 h-6 bg-brand rounded-full" />
                       Movies
-                      <span className="text-sm font-normal text-[var(--color-text-dim)]">
+                      <span className="text-sm font-normal text-text-dim">
                         ({movies.length})
                       </span>
                     </h2>
@@ -223,16 +175,12 @@ function SearchInner() {
                   </div>
                 )}
 
-                {(movies.length > 0 || tvShows.length > 0) && (
-                  <AdRenderer position="search_inline" />
-                )}
-
                 {tvShows.length > 0 && (
                   <div className="space-y-4">
                     <h2 className="text-xl font-semibold flex items-center gap-2">
                       <span className="w-1.5 h-6 bg-blue-500 rounded-full" />
                       TV Shows
-                      <span className="text-sm font-normal text-[var(--color-text-dim)]">
+                      <span className="text-sm font-normal text-text-dim">
                         ({tvShows.length})
                       </span>
                     </h2>
@@ -262,7 +210,7 @@ function SearchInner() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="px-6 py-12 flex items-center gap-2 text-[var(--color-text-dim)]"><Loader2 size={18} className="animate-spin" /> Loading search...</div>}>
+    <Suspense fallback={<div className="px-6 py-12 flex items-center gap-2 text-text-dim"><Loader2 size={18} className="animate-spin" /> Loading search...</div>}>
       <SearchInner />
     </Suspense>
   );
