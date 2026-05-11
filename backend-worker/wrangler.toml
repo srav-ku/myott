@@ -1,0 +1,15 @@
+name = "ott-backend-worker"
+main = "src/index.ts"
+compatibility_date = "2026-05-11"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ott-db"
+database_id = "e6e0641c-86c8-45de-b768-90c9c4dd40de"
+
+[vars]
+FIREBASE_PROJECT_ID = "myott-a40db"
+EXTRACTOR_URL = "https://link-it.chanducharan2030.workers.dev"
+TMDB_API_KEY = "5701acdc0ce0fd37222a3c46fa2ac9aa"
+EXTRACT_TTL_SECONDS = "21600"
+ADMIN_EMAILS = "usestoreme@gmail.com" # Change this to your email

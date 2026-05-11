@@ -18,10 +18,17 @@ if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
+  } else {
+    console.warn('Firebase Admin Service Account not configured. Admin features requiring server-side Firebase will fail.');
   }
 }
 
-export const auth = admin.auth();
+// Export a dummy auth if initialization failed to prevent crashes on import
+export const auth = admin.apps.length > 0 ? admin.auth() : {
+  verifyIdToken: async () => {
+    throw new Error('Firebase Admin not initialized');
+  }
+} as any;
 
 export async function verifyIdToken(token: string) {
   try {

@@ -52,6 +52,9 @@ export async function api<T = unknown>(
   path: string,
   init: RequestInit = {},
 ): Promise<ApiResult<T>> {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const url = path.startsWith('http') ? path : `${baseUrl}${path}`;
+
   const headers: Record<string, string> = {
     ...(init.body && !(init.body instanceof FormData)
       ? { 'Content-Type': 'application/json' }
@@ -61,7 +64,7 @@ export async function api<T = unknown>(
   };
   let res: Response;
   try {
-    res = await fetch(path, { ...init, headers });
+    res = await fetch(url, { ...init, headers });
   } catch (e) {
     return { ok: false, status: 0, error: (e as Error).message };
   }
