@@ -1,9 +1,0 @@
-name = "ott-extractor"
-main = "src/index.ts"
-compatibility_date = "2024-11-01"
-compatibility_flags = ["nodejs_compat"]
-
-# Set via `wrangler secret put EXTRACTOR_API_KEY` before deploying.
-# Local dev can use `.dev.vars`.
-[vars]
-# (no plain vars yet)

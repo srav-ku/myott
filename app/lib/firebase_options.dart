@@ -50,8 +50,8 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBeWfuuu8VwxNTjPYnThfW9LV4Byj36-7I',
-    appId: '1:985378262660:android:...', // Not available in .env.local, needs google-services.json
+    apiKey: 'AIzaSyA3hIvKIhNeAvHnySS2fANKkk5EcO-KTkc',
+    appId: '1:985378262660:android:ab10509bab8cb5b3d1fcd1',
     messagingSenderId: '985378262660',
     projectId: 'myott-a40db',
     storageBucket: 'myott-a40db.firebasestorage.app',

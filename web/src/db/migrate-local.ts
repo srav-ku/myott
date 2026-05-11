@@ -1,6 +1,6 @@
 /**
  * Apply Drizzle migrations to the local libSQL file used by `next dev`.
- * Run with: pnpm --filter @workspace/web run db:migrate:local
+ * Run with: npm run db:migrate
  */
 import { drizzle } from 'drizzle-orm/libsql';
 import { migrate } from 'drizzle-orm/libsql/migrator';

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final authProvider = NotifierProvider<AuthNotifier, AuthState>(() {
@@ -24,6 +25,7 @@ class AuthState {
 
 class AuthNotifier extends Notifier<AuthState> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   @override
   AuthState build() {
@@ -47,16 +49,32 @@ class AuthNotifier extends Notifier<AuthState> {
     });
   }
 
-  Future<void> login(String email, String password) async {
-    state = state.copyWith(isLoading: true);
+  Future<void> signInWithGoogle() async {
+    state = state.copyWith(isLoading: true, error: null);
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // User cancelled the sign-in
+        state = state.copyWith(isLoading: false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await _auth.signInWithCredential(credential);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
   Future<void> logout() async {
+    await _googleSignIn.signOut();
     await _auth.signOut();
   }
 }
