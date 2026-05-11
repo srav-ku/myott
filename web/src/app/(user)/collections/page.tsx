@@ -89,7 +89,7 @@ export default function CollectionsPage() {
   if (authLoading || (user && loading)) {
     return (
       <div className="grid place-items-center py-24">
-        <Loader2 className="animate-spin text-[var(--color-brand)]" size={32} />
+        <Loader2 className="animate-spin text-brand" size={32} />
       </div>
     );
   }

@@ -19,8 +19,8 @@ import {
   type TmdbPaged,
 } from '@/lib/tmdb';
 import { getDb } from '@/db/client';
-import { movies } from '@/db/schema';
-import { sql, desc } from 'drizzle-orm';
+import { movies, links } from '@/db/schema';
+import { sql, desc, eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 const CATEGORIES = [
@@ -49,9 +49,20 @@ export async function GET(req: NextRequest) {
 
     if (q.source === 'local') {
       const rows = await db
-        .select()
+        .select({
+          id: movies.id,
+          tmdbId: movies.tmdbId,
+          title: movies.title,
+          overview: movies.overview,
+          posterPath: movies.posterPath,
+          backdropPath: movies.backdropPath,
+          rating: movies.rating,
+          releaseDate: movies.releaseDate,
+        })
         .from(movies)
-        .orderBy(desc(movies.createdAt))
+        .innerJoin(links, eq(movies.id, links.movieId))
+        .groupBy(movies.id)
+        .orderBy(desc(movies.updatedAt))
         .limit(q.limit)
         .offset((q.page - 1) * q.limit);
 

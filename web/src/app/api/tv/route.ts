@@ -18,8 +18,8 @@ import {
   type TmdbPaged,
 } from '@/lib/tmdb';
 import { getDb } from '@/db/client';
-import { tv } from '@/db/schema';
-import { sql, desc } from 'drizzle-orm';
+import { tv, episodes, links } from '@/db/schema';
+import { sql, desc, eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 const CATEGORIES = [
@@ -47,9 +47,21 @@ export async function GET(req: NextRequest) {
 
     if (q.source === 'local') {
       const rows = await db
-        .select()
+        .select({
+          id: tv.id,
+          tmdbId: tv.tmdbId,
+          name: tv.name,
+          overview: tv.overview,
+          posterPath: tv.posterPath,
+          backdropPath: tv.backdropPath,
+          rating: tv.rating,
+          firstAirDate: tv.firstAirDate,
+        })
         .from(tv)
-        .orderBy(desc(tv.createdAt))
+        .innerJoin(episodes, eq(tv.id, episodes.tvId))
+        .innerJoin(links, eq(episodes.id, links.episodeId))
+        .groupBy(tv.id)
+        .orderBy(desc(tv.updatedAt))
         .limit(q.limit)
         .offset((q.page - 1) * q.limit);
       

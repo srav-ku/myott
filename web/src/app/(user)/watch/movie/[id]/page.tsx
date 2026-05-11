@@ -80,7 +80,7 @@ function Inner({ id }: { id: number }) {
     <div className="px-4 sm:px-6 space-y-4 max-w-5xl mx-auto">
       <Link
         href={`/movies/${movie?.tmdb_id ?? ''}`}
-        className="inline-flex items-center gap-1 text-sm text-[var(--color-text-dim)] hover:text-white"
+        className="inline-flex items-center gap-1 text-sm text-text-dim hover:text-white"
       >
         <ChevronLeft size={16} /> Back
       </Link>
@@ -88,8 +88,8 @@ function Inner({ id }: { id: number }) {
         <h1 className="text-2xl font-semibold">{movie?.title ?? `Movie #${id}`}</h1>
       </div>
       {err && stream === null ? (
-        <div className="rounded-lg border border-[var(--color-brand)]/40 bg-[var(--color-brand)]/10 p-4 flex gap-3">
-          <AlertCircle className="text-[var(--color-brand)] flex-shrink-0 mt-0.5" size={20} />
+        <div className="rounded-lg border border-brand/40 bg-brand/10 p-4 flex gap-3">
+          <AlertCircle className="text-brand shrink-0 mt-0.5" size={20} />
           <div className="text-sm">{err}</div>
         </div>
       ) : !stream ? (
@@ -105,7 +105,7 @@ function Inner({ id }: { id: number }) {
             href={stream.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[var(--color-brand)] underline break-all"
+            className="text-brand underline break-all"
           >
             {stream.url}
           </a>
@@ -141,15 +141,15 @@ function QualityRow({
   if (links.length <= 1) return null;
   return (
     <div className="flex flex-wrap gap-2">
-      <span className="text-xs text-[var(--color-text-dim)] self-center">Quality:</span>
+      <span className="text-xs text-text-dim self-center">Quality:</span>
       {links.map((l) => (
         <button
           key={l.id}
           onClick={() => onPick(l.id)}
           className={`text-xs px-2.5 py-1 rounded border ${
             l.id === activeLink
-              ? 'border-[var(--color-brand)] text-[var(--color-brand)]'
-              : 'border-[var(--color-border)] hover:border-white'
+              ? 'border-brand text-brand'
+              : 'border-border hover:border-white'
           }`}
         >
           {l.quality}

@@ -85,7 +85,7 @@ export default function MoviePage({
         )}
         <div className="px-4 sm:px-6 pt-8 flex flex-col md:flex-row gap-6">
           {movie.poster_url && (
-            <div className="w-44 sm:w-56 flex-shrink-0">
+            <div className="w-44 sm:w-56 shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={movie.poster_url}

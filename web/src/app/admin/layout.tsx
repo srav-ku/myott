@@ -29,8 +29,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   if (loading || !user || !isAdmin) {
     return (
-      <div className="min-h-screen grid place-items-center bg-[var(--color-bg)] text-white">
-        <Loader2 className="animate-spin text-[var(--color-brand)]" size={40} />
+      <div className="min-h-screen grid place-items-center bg-bg text-white">
+        <Loader2 className="animate-spin text-brand" size={40} />
       </div>
     );
   }
@@ -40,11 +40,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <div className="flex min-h-screen bg-[var(--color-bg)] text-white">
+    <div className="flex min-h-screen bg-bg text-white">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-[var(--color-border)] flex flex-col fixed inset-y-0 z-50 bg-[var(--color-surface)]">
-        <div className="h-16 flex items-center px-6 border-b border-[var(--color-border)] gap-2">
-          <ShieldCheck className="text-[var(--color-brand)]" size={24} />
+      <aside className="w-64 border-r border-border flex flex-col fixed inset-y-0 z-50 bg-surface">
+        <div className="h-16 flex items-center px-6 border-b border-border gap-2">
+          <ShieldCheck className="text-brand" size={24} />
           <span className="font-bold text-lg tracking-tight">Admin Portal</span>
         </div>
         
@@ -66,8 +66,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-[var(--color-brand)] text-white'
-                    : 'text-[var(--color-text-dim)] hover:text-white hover:bg-white/5'
+                    ? 'bg-brand text-white'
+                    : 'text-text-dim hover:text-white hover:bg-white/5'
                 }`}
               >
                 <item.icon size={18} />
@@ -77,7 +77,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-[var(--color-border)]">
+        <div className="p-4 border-t border-border">
           <button
             onClick={() => signOut()}
             className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
@@ -90,11 +90,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Main Content */}
       <div className="flex-1 pl-64 flex flex-col">
-        <header className="h-16 border-b border-[var(--color-border)] flex items-center justify-between px-8 bg-[var(--color-surface)]/50 backdrop-blur sticky top-0 z-40">
-          <div className="text-sm font-medium text-[var(--color-text-dim)]">
+        <header className="h-16 border-b border-border flex items-center justify-between px-8 bg-surface/50 backdrop-blur sticky top-0 z-40">
+          <div className="text-sm font-medium text-text-dim">
             Welcome back, <span className="text-white">{user.displayName || user.email}</span>
           </div>
-          <Link href="/" className="text-xs text-[var(--color-text-dim)] hover:text-white transition-colors">
+          <Link href="/" className="text-xs text-text-dim hover:text-white transition-colors">
             Exit to Site →
           </Link>
         </header>
