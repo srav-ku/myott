@@ -6,6 +6,7 @@ import streamRoutes from './routes/stream';
 import adminRoutes from './routes/admin';
 import userRoutes from './routes/user';
 import collectionRoutes from './routes/collections';
+import searchRoutes from './routes/search';
 import { authMiddleware } from './middleware/auth';
 
 const app = new Hono<{ Bindings: any }>();
@@ -21,6 +22,7 @@ app.use('*', cors({
 app.route('/api/movies', movieRoutes);
 app.route('/api/tv', tvRoutes);
 app.route('/api/collections', collectionRoutes);
+app.route('/api/search', searchRoutes);
 
 // 3. Protected Routes
 app.use('/api/stream/*', authMiddleware);

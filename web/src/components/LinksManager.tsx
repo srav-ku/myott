@@ -22,7 +22,7 @@ export function LinksManager({
   scope: { kind: 'movie'; movieId: number } | { kind: 'episode'; episodeId: number };
 }) {
   const [items, setItems] = useState<LinkRow[] | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
+  const [showAdd, setShowAdd] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
@@ -64,7 +64,6 @@ export function LinksManager({
     });
     setSaving(false);
     if (r.ok) {
-      setShowAdd(false);
       void loadLinks();
     } else {
       setError(r.error);
@@ -97,7 +96,7 @@ export function LinksManager({
         <h3 className="font-semibold">Streaming Links</h3>
         <button
           onClick={() => setShowAdd((s) => !s)}
-          className="inline-flex items-center gap-1 text-sm bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] rounded px-3 py-1.5"
+          className="inline-flex items-center gap-1 text-sm bg-brand hover:bg-brand-hover rounded px-3 py-1.5"
         >
           {showAdd ? <X size={14} /> : <Plus size={14} />}
           {showAdd ? 'Cancel' : 'Add Link'}
@@ -114,14 +113,14 @@ export function LinksManager({
         />
       )}
       {error && (
-        <div className="text-sm text-[var(--color-brand)] flex items-center gap-2">
+        <div className="text-sm text-brand flex items-center gap-2">
           <AlertCircle size={14} /> {error}
         </div>
       )}
       {!items ? (
         <Loader2 className="animate-spin" />
       ) : items.length === 0 ? (
-        <div className="text-sm text-[var(--color-text-dim)] border border-dashed border-[var(--color-border)] rounded p-3">
+        <div className="text-sm text-text-dim border border-dashed border-border rounded p-3">
           No links yet. Click &quot;Add Link&quot; above.
         </div>
       ) : (
@@ -160,7 +159,7 @@ function NewLinkForm({
   onAddNewLanguage: (name: string) => void;
   addingLanguage: boolean;
 }) {
-  const [quality, setQuality] = useState('1080p');
+  const [quality, setQuality] = useState<Quality>('1080p');
   const [type, setType] = useState<'direct' | 'extract'>('direct');
   const [url, setUrl] = useState('');
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
@@ -192,14 +191,14 @@ function NewLinkForm({
   return (
     <form
       onSubmit={submit}
-      className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg p-3 space-y-2"
+      className="bg-surface-2 border border-border rounded-lg p-3 space-y-2"
     >
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <Field label="Quality">
           <select
             value={quality}
-            onChange={(e) => setQuality(e.target.value)}
-            className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm"
+            onChange={(e) => setQuality(e.target.value as Quality)}
+            className="w-full bg-bg border border-border rounded px-2 py-1.5 text-sm"
           >
             {QUALITIES.map((q) => (
               <option key={q} value={q}>
@@ -212,7 +211,7 @@ function NewLinkForm({
           <select
             value={type}
             onChange={(e) => setType(e.target.value as 'direct' | 'extract')}
-            className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm"
+            className="w-full bg-bg border border-border rounded px-2 py-1.5 text-sm"
           >
             <option value="direct">Direct (.mp4 / .m3u8)</option>
             <option value="extract">Extract (worker)</option>
@@ -239,7 +238,7 @@ function NewLinkForm({
             value={newLanguageName}
             onChange={(e) => setNewLanguageName(e.target.value)}
             placeholder="Add new language"
-            className="flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm"
+            className="flex-1 bg-bg border border-border rounded px-2 py-1.5 text-sm"
           />
           <button
             type="button"
@@ -258,14 +257,14 @@ function NewLinkForm({
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://example.com/stream.mp4 or .m3u8"
           required
-          className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm"
+          className="w-full bg-bg border border-border rounded px-2 py-1.5 text-sm"
         />
       </Field>
       <div className="flex justify-end">
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex items-center gap-1 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] rounded px-3 py-1.5 text-sm disabled:opacity-60"
+          className="inline-flex items-center gap-1 bg-brand hover:bg-brand-hover rounded px-3 py-1.5 text-sm disabled:opacity-60"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           Save
@@ -278,7 +277,7 @@ function NewLinkForm({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-dim)]">
+      <span className="text-[10px] uppercase tracking-wider text-text-dim">
         {label}
       </span>
       <div className="mt-1">{children}</div>
@@ -299,7 +298,7 @@ function LinkItem({
 }) {
   const [editing, setEditing] = useState(false);
   const [url, setUrl] = useState(link.url);
-  const [quality, setQuality] = useState(link.quality);
+  const [quality, setQuality] = useState<Quality>(link.quality);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(link.languages || []);
   const [busy, setBusy] = useState(false);
 
@@ -319,15 +318,15 @@ function LinkItem({
   }
 
   return (
-    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3">
+    <div className="bg-surface border border-border rounded-lg p-3">
       {editing ? (
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <Field label="Quality">
               <select
                 value={quality}
-                onChange={(e) => setQuality(e.target.value)}
-                className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm"
+                onChange={(e) => setQuality(e.target.value as Quality)}
+                className="w-full bg-bg border border-border rounded px-2 py-1.5 text-sm"
               >
                 {QUALITIES.map((q) => (
                   <option key={q} value={q}>
@@ -340,7 +339,7 @@ function LinkItem({
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm"
+                className="w-full bg-bg border border-border rounded px-2 py-1.5 text-sm"
               />
             </Field>
           </div>
@@ -369,14 +368,14 @@ function LinkItem({
                 setQuality(link.quality);
                 setSelectedLanguages(link.languages || []);
               }}
-              className="text-xs px-3 py-1.5 border border-[var(--color-border)] rounded"
+              className="text-xs px-3 py-1.5 border border-border rounded"
             >
               Cancel
             </button>
             <button
               onClick={save}
               disabled={busy}
-              className="text-xs px-4 py-1.5 bg-[var(--color-brand)] rounded inline-flex items-center gap-1"
+              className="text-xs px-4 py-1.5 bg-brand rounded inline-flex items-center gap-1"
             >
               {busy ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
               Save
@@ -387,7 +386,7 @@ function LinkItem({
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="px-2 py-0.5 rounded bg-[var(--color-surface-2)] text-xs font-medium">
+              <span className="px-2 py-0.5 rounded bg-surface-2 text-xs font-medium">
                 {link.quality}
               </span>
               <span
@@ -400,7 +399,7 @@ function LinkItem({
                 {link.type}
               </span>
               {link.languages && link.languages.length > 0 && (
-                <span className="text-xs text-[var(--color-text-dim)]">
+                <span className="text-xs text-text-dim">
                   {link.languages.join(', ')}
                 </span>
               )}
@@ -408,20 +407,20 @@ function LinkItem({
                 <span className="text-[10px] text-green-400">cached</span>
               )}
             </div>
-            <div className="text-xs text-[var(--color-text-dim)] mt-1 break-all">
+            <div className="text-xs text-text-dim mt-1 break-all">
               {link.url}
             </div>
           </div>
-          <div className="flex gap-1 flex-shrink-0">
+          <div className="flex gap-1 shrink-0">
             <button
               onClick={() => setEditing(true)}
-              className="text-xs px-2 py-1 border border-[var(--color-border)] hover:border-white rounded"
+              className="text-xs px-2 py-1 border border-border hover:border-white rounded"
             >
               Edit
             </button>
             <button
               onClick={onDelete}
-              className="grid place-items-center w-7 h-7 border border-[var(--color-border)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] rounded"
+              className="grid place-items-center w-7 h-7 border border-border hover:border-brand hover:text-brand rounded"
               title="Delete"
             >
               <Trash2 size={12} />

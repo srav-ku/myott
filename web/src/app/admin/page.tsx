@@ -27,7 +27,7 @@ function ContentDashboard() {
   const [tab, setTab] = useState<'movie' | 'tv'>(
     (sp.get('tab') as 'tv') === 'tv' ? 'tv' : 'movie',
   );
-  const [source, setSource] = useState<'local' | 'tmdb'>('local');
+  const source = sp.get('source') === 'tmdb' ? 'tmdb' : 'local';
   const [q, setQ] = useState('');
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(false);
@@ -57,11 +57,28 @@ function ContentDashboard() {
       return;
     }
     setLoading(true);
-    const r = await api<{ results: Result[] }>(
+    const r = await api<{ results: (Result & { in_db?: boolean })[] }>(
       `/api/search?q=${encodeURIComponent(q)}&type=${tab}&limit=40`,
     );
     setLoading(false);
-    if (r.ok) setResults(r.data.results);
+    if (r.ok) {
+      if (source === 'local') {
+        setResults(r.data.results.filter((x) => x.in_db));
+      } else {
+        setResults(r.data.results);
+      }
+    }
+  }
+
+  async function addToLibrary(tmdbId: number, kind: 'movie' | 'tv') {
+    const r = await api(`/api/${kind === 'movie' ? 'movies' : 'tv'}/${tmdbId}`);
+    if (r.ok) {
+      alert(`Successfully added to Library!`);
+      // Update UI to show it's in DB now
+      setResults(prev => prev.map(item => item.tmdb_id === tmdbId ? { ...item, in_db: true } : item));
+    } else {
+      alert(r.error || 'Failed to add to library');
+    }
   }
 
   useEffect(() => {
@@ -108,25 +125,6 @@ function ContentDashboard() {
               </button>
             ))}
           </div>
-
-          <div className="inline-flex rounded-lg bg-surface border border-border p-1">
-            {[
-              { id: 'local', label: 'Library' },
-              { id: 'tmdb', label: 'Discovery' },
-            ].map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setSource(s.id as any)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                  source === s.id
-                    ? 'bg-purple-600 text-white'
-                    : 'text-text-dim hover:text-white'
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
         </div>
 
         <form
@@ -167,11 +165,11 @@ function ContentDashboard() {
             const year =
               (r.release_date ?? r.first_air_date)?.slice(0, 4) ?? null;
             return (
-              <Link
+              <div
                 key={`${k}-${r.tmdb_id}`}
-                href={href}
-                className="flex items-center gap-3 p-2 bg-surface rounded-xl border border-border hover:border-white group transition-all relative"
+                className="flex items-center gap-3 p-2 bg-surface rounded-xl border border-border group transition-all relative"
               >
+                {/* Image */}
                 <div className="w-10 h-14 shrink-0 rounded-lg overflow-hidden bg-bg">
                   {r.poster_url && (
                     /* eslint-disable-next-line @next/next/no-img-element */
@@ -182,6 +180,8 @@ function ContentDashboard() {
                     />
                   )}
                 </div>
+
+                {/* Details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="font-bold truncate">{title}</div>
@@ -196,10 +196,26 @@ function ContentDashboard() {
                     {year && ` · ${year}`}
                   </div>
                 </div>
-                <div className="text-text-dim group-hover:text-white px-2">
-                  <ArrowRight size={18} />
+
+                {/* Actions */}
+                <div className="flex gap-2 px-2 relative z-10">
+                  {(r as any).in_db || source === 'local' ? (
+                    <Link
+                      href={href}
+                      className="text-xs bg-brand hover:bg-brand-hover text-white px-4 py-1.5 rounded-md font-medium transition-colors"
+                    >
+                      Edit
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => addToLibrary(r.tmdb_id, k as any)}
+                      className="text-xs border border-brand text-brand hover:bg-brand hover:text-white px-4 py-1.5 rounded-md font-medium transition-colors"
+                    >
+                      Add to Library
+                    </button>
+                  )}
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>

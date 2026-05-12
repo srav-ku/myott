@@ -1,25 +1,22 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { sql } from 'drizzle-orm';
+import { sql, eq, inArray } from 'drizzle-orm';
 import { schema } from '../db/schema';
 import { tmdbFetch } from '../lib/tmdb';
 
-const app = new Hono<{ Bindings: any }>();
+const app = new Hono<{ Bindings: any, Variables: { user: any } }>();
 
-/**
- * GET /api/admin/stats
- */
-app.get('/stats', async (c: any) => {
+app.use('*', async (c, next) => {
   const user = c.get('user');
-  if (!user.isAdmin) return c.json({ error: 'Forbidden' }, 403);
+  if (!user?.isAdmin) return c.json({ error: 'Forbidden' }, 403);
+  await next();
+});
 
+app.get('/stats', async (c: any) => {
   const db = drizzle(c.env.DB, { schema });
-  
-  // Use simple queries for stats
   const [movieCount] = await db.select({ count: sql`count(*)` }).from(schema.movies);
   const [tvCount] = await db.select({ count: sql`count(*)` }).from(schema.tv);
   const [userCount] = await db.select({ count: sql`count(*)` }).from(schema.users);
-
   return c.json({
     stats: {
       movies: Number(movieCount?.count || 0),
@@ -29,20 +26,11 @@ app.get('/stats', async (c: any) => {
   });
 });
 
-/**
- * POST /api/admin/ingest
- * ONLY place where TMDB calls are allowed.
- */
 app.post('/ingest', async (c: any) => {
-  const user = c.get('user');
-  if (!user.isAdmin) return c.json({ error: 'Forbidden' }, 403);
-
   const { tmdbId, type } = await c.req.json();
   const db = drizzle(c.env.DB, { schema });
-
   if (type === 'movie') {
     const detail = await tmdbFetch<any>(`/movie/${tmdbId}`, c.env.TMDB_API_KEY);
-    
     await db.insert(schema.movies).values({
       tmdbId: detail.id,
       imdbId: detail.imdb_id || null,
@@ -57,17 +45,121 @@ app.post('/ingest', async (c: any) => {
       genres: (detail.genres || []).map((g: any) => g.name),
     }).onConflictDoUpdate({
       target: schema.movies.tmdbId,
-      set: { 
-        rating: detail.vote_average, 
-        updatedAt: sql`(unixepoch())` 
-      },
+      set: { rating: detail.vote_average, updatedAt: sql`(unixepoch())` },
     });
-
     return c.json({ success: true, message: `Ingested movie: ${detail.title}` });
   }
-
-  // Add TV ingestion here...
   return c.json({ error: 'Type not supported yet' }, 400);
+});
+
+// MOVIES
+app.delete('/movies/:id', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  await db.delete(schema.movies).where(eq(schema.movies.id, Number(c.req.param('id'))));
+  return c.json({ ok: true });
+});
+
+// TV
+app.delete('/tv/:id', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  await db.delete(schema.tv).where(eq(schema.tv.id, Number(c.req.param('id'))));
+  return c.json({ ok: true });
+});
+
+app.get('/tv/:id/episodes', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  const tvId = Number(c.req.param('id'));
+  const eps = await db.select().from(schema.episodes).where(eq(schema.episodes.tvId, tvId));
+  if (eps.length === 0) return c.json({ episodes: [] });
+  
+  const epIds = eps.map(e => e.id);
+  const lns = await db.select().from(schema.links).where(inArray(schema.links.episodeId, epIds));
+  
+  const grouped = eps.map(ep => ({
+    ...ep,
+    links: lns.filter(l => l.episodeId === ep.id),
+  }));
+  return c.json({ episodes: grouped });
+});
+
+app.post('/tv/:id/episodes', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  const tvId = Number(c.req.param('id'));
+  const body = await c.req.json();
+  const [inserted] = await db.insert(schema.episodes).values({
+    tvId,
+    seasonNumber: body.season_number,
+    episodeNumber: body.episode_number,
+    title: body.title || null,
+    overview: body.overview || null,
+  }).returning();
+  return c.json({ episode: inserted }, 201);
+});
+
+app.delete('/tv/:tvId/episodes/:episodeId', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  await db.delete(schema.episodes).where(eq(schema.episodes.id, Number(c.req.param('episodeId'))));
+  return c.json({ ok: true });
+});
+
+// LINKS
+app.get('/links', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  const movieId = Number(c.req.query('movie_id') || 0);
+  const episodeId = Number(c.req.query('episode_id') || 0);
+  
+  const rows = movieId 
+    ? await db.select().from(schema.links).where(eq(schema.links.movieId, movieId))
+    : episodeId
+    ? await db.select().from(schema.links).where(eq(schema.links.episodeId, episodeId))
+    : await db.select().from(schema.links);
+  return c.json({ links: rows });
+});
+
+app.post('/links', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  const data = await c.req.json();
+  const [inserted] = await db.insert(schema.links).values({
+    movieId: data.movie_id || null,
+    episodeId: data.episode_id || null,
+    quality: data.quality,
+    type: data.type,
+    url: data.url,
+    languages: data.languages || [],
+  }).returning();
+  return c.json({ link: inserted }, 201);
+});
+
+app.patch('/links/:id', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  const data = await c.req.json();
+  const [updated] = await db.update(schema.links).set({
+    quality: data.quality,
+    url: data.url,
+    languages: data.languages || [],
+    updatedAt: sql`(unixepoch())`
+  }).where(eq(schema.links.id, Number(c.req.param('id')))).returning();
+  return c.json({ link: updated });
+});
+
+app.delete('/links/:id', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  await db.delete(schema.links).where(eq(schema.links.id, Number(c.req.param('id'))));
+  return c.json({ ok: true });
+});
+
+// LANGUAGES
+app.get('/languages', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  const rows = await db.select().from(schema.languages);
+  return c.json({ languages: rows.map(r => r.name) });
+});
+
+app.post('/languages', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  const { name } = await c.req.json();
+  await db.insert(schema.languages).values({ name }).onConflictDoNothing();
+  return c.json({ ok: true });
 });
 
 export default app;

@@ -7,6 +7,8 @@ import {
   ChevronLeft,
   Loader2,
   Trash2,
+  Plus,
+  X
 } from 'lucide-react';
 
 type Tv = {
@@ -43,6 +45,28 @@ function Inner({ tmdbId }: { tmdbId: number }) {
   const [err, setErr] = useState<string | null>(null);
   const [activeSeason, setActiveSeason] = useState<number | null>(null);
 
+  const [addingEpisode, setAddingEpisode] = useState(false);
+  const [newEpSeason, setNewEpSeason] = useState(1);
+  const [newEpNum, setNewEpNum] = useState(1);
+  const [addingBusy, setAddingBusy] = useState(false);
+
+  async function handleAddEpisode(e: React.FormEvent) {
+    e.preventDefault();
+    setAddingBusy(true);
+    const r = await api(`/api/admin/tv/${show!.id}/episodes`, {
+      method: 'POST',
+      body: JSON.stringify({ season_number: newEpSeason, episode_number: newEpNum })
+    });
+    setAddingBusy(false);
+    if (r.ok) {
+      setAddingEpisode(false);
+      void loadEpisodes(show!.id);
+      setActiveSeason(newEpSeason);
+    } else {
+      alert(r.error);
+    }
+  }
+
   async function loadEpisodes(tvId: number) {
     const r = await api<{ episodes: Episode[] }>(`/api/admin/tv/${tvId}/episodes`);
     if (r.ok) {
@@ -76,7 +100,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
   }
 
   if (err)
-    return <div className="px-6 py-12 text-center text-[var(--color-brand)]">{err}</div>;
+    return <div className="px-6 py-12 text-center text-brand">{err}</div>;
   if (!show)
     return (
       <div className="grid place-items-center py-24">
@@ -94,7 +118,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
     <div className="space-y-6 pb-20">
       <Link
         href="/admin"
-        className="inline-flex items-center gap-1 text-sm text-[var(--color-text-dim)] hover:text-white"
+        className="inline-flex items-center gap-1 text-sm text-text-dim hover:text-white"
       >
         <ChevronLeft size={16} /> Back
       </Link>
@@ -104,25 +128,25 @@ function Inner({ tmdbId }: { tmdbId: number }) {
           <img
             src={show.poster_url}
             alt=""
-            className="w-24 rounded border border-[var(--color-border)]"
+            className="w-24 rounded border border-border"
           />
         )}
         <div className="flex-1">
           <h1 className="text-2xl font-semibold">{show.name}</h1>
-          <div className="text-xs text-[var(--color-text-dim)] mt-1">
+          <div className="text-xs text-text-dim mt-1">
             TV · TMDB #{show.tmdb_id}
             {year && ` · ${year}`}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href={`/tv/${show.tmdb_id}`}
-              className="text-xs border border-[var(--color-border)] hover:border-white rounded-lg px-3 py-1.5 transition-all"
+              className="text-xs border border-border hover:border-white rounded-lg px-3 py-1.5 transition-all"
             >
               View public page
             </Link>
             <button
               onClick={deleteShow}
-              className="text-xs border border-[var(--color-brand)] text-[var(--color-brand)] hover:bg-[var(--color-brand)] hover:text-white rounded-lg px-3 py-1.5 inline-flex items-center gap-1 transition-all"
+              className="text-xs border border-brand text-brand hover:bg-brand hover:text-white rounded-lg px-3 py-1.5 inline-flex items-center gap-1 transition-all"
             >
               <Trash2 size={14} /> Delete show
             </button>
@@ -131,27 +155,65 @@ function Inner({ tmdbId }: { tmdbId: number }) {
       </div>
 
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-1.5 overflow-x-auto no-scrollbar">
-          {seasons.map((s) => (
-            <button
-              key={s}
-              onClick={() => setActiveSeason(s)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeSeason === s
-                  ? 'bg-[var(--color-brand)] text-white'
-                  : 'bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-white'
-              }`}
-            >
-              SEASON {s}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap gap-1.5 overflow-x-auto no-scrollbar">
+            {seasons.map((s) => (
+              <button
+                key={s}
+                onClick={() => setActiveSeason(s)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  activeSeason === s
+                    ? 'bg-brand text-white'
+                    : 'bg-surface border border-border hover:border-white'
+                }`}
+              >
+                SEASON {s}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => {
+              setNewEpSeason(activeSeason || 1);
+              setAddingEpisode(true);
+            }}
+            className="flex items-center gap-1 text-xs bg-brand text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-all"
+          >
+            <Plus size={14} /> Add Episode
+          </button>
         </div>
+
+        {addingEpisode && (
+          <form onSubmit={handleAddEpisode} className="bg-surface-2 border border-border rounded-lg p-4 space-y-3 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm">Add Episode Manually</h3>
+              <button type="button" onClick={() => setAddingEpisode(false)} className="text-text-dim hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex items-center gap-4">
+              <label className="block flex-1">
+                <span className="text-[10px] uppercase tracking-wider text-text-dim">Season</span>
+                <input type="number" min={0} value={newEpSeason} onChange={(e) => setNewEpSeason(Number(e.target.value))} className="w-full mt-1 bg-bg border border-border rounded px-3 py-2 text-sm" required />
+              </label>
+              <label className="block flex-1">
+                <span className="text-[10px] uppercase tracking-wider text-text-dim">Episode</span>
+                <input type="number" min={0} value={newEpNum} onChange={(e) => setNewEpNum(Number(e.target.value))} className="w-full mt-1 bg-bg border border-border rounded px-3 py-2 text-sm" required />
+              </label>
+            </div>
+            <div className="flex justify-end">
+              <button disabled={addingBusy} type="submit" className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                {addingBusy && <Loader2 size={14} className="animate-spin" />}
+                Save Episode
+              </button>
+            </div>
+          </form>
+        )}
 
         <div className="space-y-4">
           {!episodes ? (
             <Loader2 className="animate-spin" />
           ) : episodes.length === 0 ? (
-            <div className="text-sm text-[var(--color-text-dim)] border border-dashed border-[var(--color-border)] rounded p-12 text-center">
+            <div className="text-sm text-text-dim border border-dashed border-border rounded p-12 text-center">
               No episodes found for this show.
             </div>
           ) : (
@@ -167,10 +229,10 @@ function Inner({ tmdbId }: { tmdbId: number }) {
 
 function EpisodeAdminCard({ episode }: { episode: Episode }) {
   return (
-    <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden transition-all hover:border-[var(--color-border-hover)]">
-      <div className="p-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/30 flex items-center justify-between">
+    <div className="bg-surface rounded-xl border border-border overflow-hidden transition-all hover:border-border-hover">
+      <div className="p-3 border-b border-border bg-bg/30 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-[10px] font-bold text-[var(--color-brand)] bg-[var(--color-brand)]/10 px-2 py-0.5 rounded uppercase tracking-wider">
+          <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded uppercase tracking-wider">
             E{episode.episodeNumber}
           </span>
           <span className="font-bold text-sm truncate">
@@ -185,7 +247,7 @@ function EpisodeAdminCard({ episode }: { episode: Episode }) {
               }).then(() => window.location.reload());
             }
           }}
-          className="text-[var(--color-text-dim)] hover:text-red-400 p-1 transition-colors"
+          className="text-text-dim hover:text-red-400 p-1 transition-colors"
         >
           <Trash2 size={16} />
         </button>

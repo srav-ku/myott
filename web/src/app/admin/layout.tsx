@@ -12,7 +12,8 @@ import {
   Megaphone, 
   LogOut,
   ShieldCheck,
-  Loader2
+  Loader2,
+  Search
 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -36,7 +37,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   const sidebarItems = [
-    { label: 'Content', href: '/admin', icon: Film },
+    { label: 'Library', href: '/admin?source=local', icon: Film },
+    { label: 'Discovery', href: '/admin?source=tmdb', icon: Search },
   ];
 
   return (
@@ -54,10 +56,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             const itemTab = item.href.split('tab=')[1];
             
             let active = false;
-            if (item.label === 'Content') {
-              active = pathname === '/admin' || pathname === '/admin/manage' || pathname.startsWith('/admin/manage/');
+            if (item.label === 'Library') {
+              active = (pathname === '/admin' || pathname === '/admin/manage' || pathname.startsWith('/admin/manage/')) && searchParams.get('source') !== 'tmdb';
+            } else if (item.label === 'Discovery') {
+              active = pathname === '/admin' && searchParams.get('source') === 'tmdb';
             } else {
-              active = pathname.startsWith(item.href);
+              active = pathname.startsWith(item.href.split('?')[0]);
             }
 
             return (

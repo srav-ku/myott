@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, desc } from 'drizzle-orm';
 import { schema } from '../db/schema';
-import { tmdbImg } from '../lib/tmdb';
+import { tmdbFetch, tmdbImg } from '../lib/tmdb';
 
 const app = new Hono<{ Bindings: any }>();
 
@@ -51,14 +51,35 @@ app.get('/', async (c) => {
   });
 });
 
-app.get('/:id', async (c) => {
-  const id = Number(c.req.param('id'));
+app.get('/:tmdbId', async (c) => {
+  const tmdbId = Number(c.req.param('tmdbId'));
   const db = drizzle(c.env.DB, { schema });
 
-  const [movie] = await db.select().from(schema.movies).where(eq(schema.movies.id, id)).limit(1);
-  if (!movie) return c.json({ error: 'Movie not found in local database' }, 404);
+  let [movie] = await db.select().from(schema.movies).where(eq(schema.movies.tmdbId, tmdbId)).limit(1);
+  
+  if (!movie) {
+    try {
+      const detail = await tmdbFetch<any>(`/movie/${tmdbId}`, c.env.TMDB_API_KEY);
+      const [inserted] = await db.insert(schema.movies).values({
+        tmdbId: detail.id,
+        imdbId: detail.imdb_id || null,
+        title: detail.title,
+        overview: detail.overview || null,
+        posterPath: detail.poster_path || null,
+        backdropPath: detail.backdrop_path || null,
+        rating: detail.vote_average || null,
+        releaseDate: detail.release_date || null,
+        releaseYear: detail.release_date ? Number(detail.release_date.slice(0, 4)) : null,
+        runtime: detail.runtime || null,
+        genres: (detail.genres || []).map((g: any) => g.name),
+      }).returning();
+      movie = inserted;
+    } catch (err) {
+      return c.json({ error: 'Movie not found in DB or TMDB' }, 404);
+    }
+  }
 
-  const links = await db.select().from(schema.links).where(eq(schema.links.movieId, id));
+  const links = await db.select().from(schema.links).where(eq(schema.links.movieId, movie.id));
 
   return c.json({
     ...movie,
