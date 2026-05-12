@@ -46,6 +46,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
   const [activeSeason, setActiveSeason] = useState<number | null>(null);
 
   const [addingEpisode, setAddingEpisode] = useState(false);
+  const [bulkAdding, setBulkAdding] = useState(false);
   const [newEpSeason, setNewEpSeason] = useState(1);
   const [newEpNum, setNewEpNum] = useState(1);
   const [addingBusy, setAddingBusy] = useState(false);
@@ -171,15 +172,27 @@ function Inner({ tmdbId }: { tmdbId: number }) {
               </button>
             ))}
           </div>
-          <button
-            onClick={() => {
-              setNewEpSeason(activeSeason || 1);
-              setAddingEpisode(true);
-            }}
-            className="flex items-center gap-1 text-xs bg-brand text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-all"
-          >
-            <Plus size={14} /> Add Episode
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setAddingEpisode(false);
+                setBulkAdding(true);
+              }}
+              className="flex items-center gap-1 text-xs border border-brand text-brand px-3 py-1.5 rounded-lg hover:bg-brand/10 transition-all"
+            >
+              <Plus size={14} /> Bulk Add Links
+            </button>
+            <button
+              onClick={() => {
+                setBulkAdding(false);
+                setNewEpSeason(activeSeason || 1);
+                setAddingEpisode(true);
+              }}
+              className="flex items-center gap-1 text-xs bg-brand text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-all"
+            >
+              <Plus size={14} /> Add Episode
+            </button>
+          </div>
         </div>
 
         {addingEpisode && (
@@ -207,6 +220,18 @@ function Inner({ tmdbId }: { tmdbId: number }) {
               </button>
             </div>
           </form>
+        )}
+
+        {bulkAdding && activeSeason !== null && episodes && (
+          <BulkLinksForm
+            seasonNumber={activeSeason}
+            episodes={episodes.filter(e => e.seasonNumber === activeSeason)}
+            onSuccess={() => {
+              setBulkAdding(false);
+              void loadEpisodes(show.id);
+            }}
+            onCancel={() => setBulkAdding(false)}
+          />
         )}
 
         <div className="space-y-4">
@@ -256,6 +281,139 @@ function EpisodeAdminCard({ episode }: { episode: Episode }) {
         <LinksManager scope={{ kind: 'episode', episodeId: episode.id }} />
       </div>
     </div>
+  );
+}
+
+function BulkLinksForm({
+  seasonNumber,
+  episodes,
+  onSuccess,
+  onCancel,
+}: {
+  seasonNumber: number;
+  episodes: Episode[];
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const [quality, setQuality] = useState('1080p');
+  const [type, setType] = useState<'direct' | 'extract'>('direct');
+  const [urlsText, setUrlsText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [langs, setLangs] = useState<string[]>([]);
+  const [selectedLangs, setSelectedLangs] = useState<string[]>([]);
+
+  useEffect(() => {
+    api<{ languages: string[] }>('/api/admin/languages').then(r => {
+      if (r.ok) setLangs(r.data.languages);
+    });
+  }, []);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const lines = urlsText.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+    
+    setBusy(true);
+    let successCount = 0;
+    
+    // Sort episodes ascending
+    const sorted = [...episodes].sort((a,b) => a.episodeNumber - b.episodeNumber);
+
+    for (let i = 0; i < Math.min(lines.length, sorted.length); i++) {
+      const ep = sorted[i];
+      const url = lines[i];
+      
+      await api('/api/admin/links', {
+        method: 'POST',
+        body: JSON.stringify({
+          episode_id: ep.id,
+          quality,
+          type,
+          url,
+          languages: selectedLangs
+        })
+      });
+      successCount++;
+    }
+    
+    setBusy(false);
+    alert(`Successfully added ${successCount} links to Season ${seasonNumber}!`);
+    onSuccess();
+  }
+
+  return (
+    <form onSubmit={submit} className="bg-surface border border-brand/50 rounded-lg p-5 space-y-4 animate-in fade-in slide-in-from-top-2">
+      <div className="flex items-center justify-between border-b border-border pb-3">
+        <div>
+          <h3 className="font-bold text-brand">Bulk Add Links to Season {seasonNumber}</h3>
+          <p className="text-xs text-text-dim mt-1">Paste URLs (one per line). Line 1 goes to Episode 1, Line 2 to Episode 2, etc.</p>
+        </div>
+        <button type="button" onClick={onCancel} className="text-text-dim hover:text-white">
+          <X size={20} />
+        </button>
+      </div>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wider text-text-dim">Quality</span>
+          <select value={quality} onChange={e => setQuality(e.target.value)} className="w-full mt-1 bg-bg border border-border rounded px-3 py-2 text-sm">
+            {['1080p', '720p', '480p', '4K'].map(q => <option key={q} value={q}>{q}</option>)}
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wider text-text-dim">Type</span>
+          <select value={type} onChange={e => setType(e.target.value as 'direct'|'extract')} className="w-full mt-1 bg-bg border border-border rounded px-3 py-2 text-sm">
+            <option value="direct">Direct (.mp4 / .m3u8)</option>
+            <option value="extract">Extract (worker)</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="block">
+        <span className="text-[10px] uppercase tracking-wider text-text-dim mb-1 block">Languages</span>
+        <div className="flex flex-wrap gap-2">
+          {langs.map(l => (
+            <label key={l} className="flex items-center gap-1.5 text-sm bg-bg border border-border rounded px-2 py-1 cursor-pointer hover:border-white">
+              <input 
+                type="checkbox" 
+                checked={selectedLangs.includes(l)}
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedLangs([...selectedLangs, l]);
+                  else setSelectedLangs(selectedLangs.filter(x => x !== l));
+                }}
+              />
+              {l}
+            </label>
+          ))}
+          {langs.length === 0 && <span className="text-xs text-text-dim">No languages found in database. Add them in a single link first.</span>}
+        </div>
+      </div>
+
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-wider text-text-dim">URLs (One per line)</span>
+        <textarea 
+          value={urlsText} 
+          onChange={e => setUrlsText(e.target.value)} 
+          required
+          rows={6}
+          placeholder={`https://example.com/s01e01.mp4\nhttps://example.com/s01e02.mp4`}
+          className="w-full mt-1 bg-bg border border-border rounded px-3 py-2 text-sm font-mono whitespace-pre" 
+        />
+        <div className="text-[10px] text-text-dim mt-1 text-right">
+          Found {urlsText.split('\n').filter(l => l.trim()).length} lines / {episodes.length} episodes in Season {seasonNumber}
+        </div>
+      </label>
+
+      <div className="flex justify-end gap-2 pt-2 border-t border-border">
+        <button type="button" onClick={onCancel} className="px-4 py-2 rounded-lg text-sm border border-border hover:bg-surface-2">
+          Cancel
+        </button>
+        <button disabled={busy} type="submit" className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+          {busy && <Loader2 size={14} className="animate-spin" />}
+          Add Bulk Links
+        </button>
+      </div>
+    </form>
   );
 }
 
