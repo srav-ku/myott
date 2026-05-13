@@ -18,12 +18,6 @@ app.use('*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
-// 2. Public Routes
-app.route('/api/movies', movieRoutes);
-app.route('/api/tv', tvRoutes);
-app.route('/api/collections', collectionRoutes);
-app.route('/api/search', searchRoutes);
-
 // 3. Protected Routes
 app.use('/api/stream/*', authMiddleware);
 app.use('/api/user/*', authMiddleware);
@@ -32,6 +26,12 @@ app.use('/api/admin/*', authMiddleware);
 // Collections management requires auth for mutations
 app.on(['POST', 'PUT', 'DELETE'], '/api/collections/*', authMiddleware);
 app.on(['POST', 'PUT', 'DELETE'], '/api/collections', authMiddleware);
+
+// 2. Public Routes (and those using optional auth)
+app.route('/api/movies', movieRoutes);
+app.route('/api/tv', tvRoutes);
+app.route('/api/collections', collectionRoutes);
+app.route('/api/search', searchRoutes);
 
 app.route('/api/stream', streamRoutes);
 app.route('/api/admin', adminRoutes);
