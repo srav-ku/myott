@@ -29,6 +29,10 @@ app.use('/api/stream/*', authMiddleware);
 app.use('/api/user/*', authMiddleware);
 app.use('/api/admin/*', authMiddleware);
 
+// Collections management requires auth for mutations
+app.on(['POST', 'PUT', 'DELETE'], '/api/collections/*', authMiddleware);
+app.on(['POST', 'PUT', 'DELETE'], '/api/collections', authMiddleware);
+
 app.route('/api/stream', streamRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/user', userRoutes);

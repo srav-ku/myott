@@ -7,12 +7,41 @@ import { callExtractor } from '../lib/extractor';
 const app = new Hono<{ Bindings: any }>();
 
 /**
+ * GET /api/stream/movie/:id
+ * Returns all links for a specific movie.
+ */
+app.get('/movie/:id', async (c: any) => {
+  const movieId = Number(c.req.param('id'));
+  const db = drizzle(c.env.DB, { schema });
+
+  const links = await db.select().from(schema.links)
+    .where(eq(schema.links.movieId, movieId));
+
+  if (links.length === 0) return c.json({ error: 'NO_LINKS_FOUND' }, 404);
+  return c.json(links);
+});
+
+/**
+ * GET /api/stream/episode/:id
+ * Returns all links for a specific episode.
+ */
+app.get('/episode/:id', async (c: any) => {
+  const episodeId = Number(c.req.param('id'));
+  const db = drizzle(c.env.DB, { schema });
+
+  const links = await db.select().from(schema.links)
+    .where(eq(schema.links.episodeId, episodeId));
+
+  if (links.length === 0) return c.json({ error: 'NO_LINKS_FOUND' }, 404);
+  return c.json(links);
+});
+
+/**
  * GET /api/stream/:linkId
- * STACK RULE: Check DB cache first, call extractor ONLY on miss/expiry.
+ * Resolves a specific link (handles extraction).
  */
 app.get('/:linkId', async (c: any) => {
   const user = c.get('user');
-  if (!user.stealthMode) return c.json({ error: 'STEALTH_REQUIRED' }, 403);
 
   const linkId = Number(c.req.param('linkId'));
   if (isNaN(linkId)) return c.json({ error: 'INVALID_LINK_ID' }, 400);
