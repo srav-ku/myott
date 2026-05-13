@@ -94,19 +94,7 @@ function ContentDashboard() {
   }, [tab, source]);
 
   return (
-    <div className="space-y-6">
-      {/* Minimal Stats */}
-      <div className="flex flex-wrap gap-x-6 gap-y-2 text-[10px] font-bold uppercase tracking-widest text-text-dim border-b border-border pb-4">
-        <div className="flex gap-1.5 items-center">
-          <span className="text-white bg-white/10 px-1.5 py-0.5 rounded">{stats?.moviesWithoutLinks ?? '..'}</span> 
-          Movies Missing Links
-        </div>
-        <div className="flex gap-1.5 items-center">
-          <span className="text-white bg-white/10 px-1.5 py-0.5 rounded">{stats?.tvMissingEpisodes ?? '..'}</span> 
-          TV Missing Links
-        </div>
-      </div>
-
+    <div className="space-y-12">
       <div className="flex flex-wrap gap-4 items-center justify-between">
         <div className="flex flex-wrap gap-4">
           <div className="inline-flex rounded-lg bg-surface border border-border p-1">
