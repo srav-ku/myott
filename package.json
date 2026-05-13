@@ -1,9 +1,0 @@
-{
-  "name": "backend-blueprint",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "web:dev": "npm run dev --prefix web",
-    "app:run": "cd app && flutter run"
-  }
-}
