@@ -1,7 +1,7 @@
 'use client';
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Search, Loader2, ArrowRight, Tv, Film } from 'lucide-react';
 import BulkImport from '@/components/BulkImport';
@@ -24,6 +24,7 @@ type Stats = {
 
 function ContentDashboard() {
   const sp = useSearchParams();
+  const router = useRouter();
   const [tab, setTab] = useState<'movie' | 'tv'>(
     (sp.get('tab') as 'tv') === 'tv' ? 'tv' : 'movie',
   );
@@ -95,26 +96,43 @@ function ContentDashboard() {
     }
   }, [tab, source]);
 
+  async function addAndManage(tmdbId: number, kind: 'movie' | 'tv') {
+    setLoading(true);
+    try {
+      const r = await api(`/api/${kind === 'movie' ? 'movies' : 'tv'}/${tmdbId}`);
+      if (r.ok) {
+        // Clear loading before pushing to allow immediate feedback
+        setLoading(false);
+        router.push(`/admin/manage/${kind}/${tmdbId}`);
+      } else {
+        alert(r.error || 'Failed to add to library');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Quick Add Error:', err);
+      alert('An unexpected error occurred. Please try again.');
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="space-y-12">
-      <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex flex-wrap gap-4">
-          <div className="inline-flex rounded-lg bg-surface border border-border p-1">
-            {(['movie', 'tv'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-all ${
-                  tab === t
-                    ? 'bg-brand text-white'
-                    : 'text-text-dim hover:text-white'
-                }`}
-              >
-                {t === 'movie' ? <Film size={14} /> : <Tv size={14} />}
-                {t === 'movie' ? 'Movies' : 'TV'}
-              </button>
-            ))}
-          </div>
+    <div className="space-y-8 max-w-5xl mx-auto">
+      {/* Header Row: Tabs & Search */}
+      <div className="flex flex-col md:flex-row gap-6 items-center justify-between bg-surface border border-border p-6 rounded-2xl shadow-xl shadow-black/20">
+        <div className="inline-flex rounded-xl bg-bg border border-border p-1.5 self-start">
+          {(['movie', 'tv'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+                tab === t
+                  ? 'bg-brand text-white shadow-lg shadow-brand/40'
+                  : 'text-text-dim hover:text-white'
+              }`}
+            >
+              {t === 'movie' ? 'Movies' : 'TV Series'}
+            </button>
+          ))}
         </div>
 
         <form
@@ -122,92 +140,102 @@ function ContentDashboard() {
             e.preventDefault();
             void search();
           }}
-          className="flex-1 max-w-md relative"
+          className="w-full md:max-w-md relative group"
         >
           <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim"
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-text-dim group-focus-within:text-brand transition-colors"
           />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={`Search ${tab === 'movie' ? 'movies' : 'TV shows'}…`}
-            className="w-full bg-surface border border-border rounded-lg pl-9 pr-3 py-2 text-sm outline-none focus:border-brand transition-all"
+            placeholder={`Find ${tab === 'movie' ? 'movies' : 'series'} to add...`}
+            className="w-full bg-bg border border-border rounded-xl pl-12 pr-4 py-3 text-sm font-medium outline-none focus:border-brand/50 focus:ring-4 focus:ring-brand/5 transition-all"
           />
         </form>
       </div>
 
-      {source === 'tmdb' && <BulkImport />}
-
-      {loading ? (
-        <div className="grid place-items-center py-20">
-          <Loader2 className="animate-spin text-brand" />
+      {/* Results Section (Scrollable) */}
+      <div className="bg-surface border border-border rounded-2xl overflow-hidden flex flex-col min-h-[400px] max-h-[600px]">
+        <div className="px-6 py-4 border-b border-border bg-white/2 flex items-center justify-between">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-text-dim">
+            {source === 'local' ? 'Library Content' : 'Search Results'}
+          </span>
+          {loading && <Loader2 className="animate-spin text-brand" size={16} />}
         </div>
-      ) : (
-        <div className="grid gap-2">
-          {results.map((r) => {
-            const k = r.kind ?? r.type ?? tab;
-            const title = r.title ?? r.name ?? '(untitled)';
-            const href =
-              k === 'movie'
-                ? `/admin/manage/movie/${r.tmdb_id}`
-                : `/admin/manage/tv/${r.tmdb_id}`;
-            const year =
-              (r.release_date ?? r.first_air_date)?.slice(0, 4) ?? null;
-            return (
-              <div
-                key={`${k}-${r.tmdb_id}`}
-                className="flex items-center gap-3 p-2 bg-surface rounded-xl border border-border group transition-all relative"
-              >
-                {/* Image */}
-                <div className="w-10 h-14 shrink-0 rounded-lg overflow-hidden bg-bg">
-                  {r.poster_url && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={r.poster_url}
-                      alt=""
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-                    />
-                  )}
-                </div>
 
-                {/* Details */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <div className="font-bold truncate">{title}</div>
-                    {source === 'tmdb' && (r as any).in_db && (
-                      <span className="text-[8px] bg-green-500/20 text-green-400 px-1 py-0.5 rounded border border-green-500/30 uppercase font-black">
-                        In Library
-                      </span>
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          {!loading && results.length === 0 && (
+            <div className="h-full flex flex-col items-center justify-center text-text-dim gap-3 opacity-50 py-20">
+              <Search size={40} strokeWidth={1} />
+              <p className="text-sm font-medium">
+                {source === 'local' ? 'Your library is empty' : 'Search for something to discover'}
+              </p>
+            </div>
+          )}
+
+          <div className="grid gap-3">
+            {results.map((r) => {
+              const k = r.kind ?? r.type ?? tab;
+              const title = r.title ?? r.name ?? '(untitled)';
+              const inDb = (r as any).in_db || source === 'local';
+              
+              return (
+                <div
+                  key={`${k}-${r.tmdb_id}`}
+                  className="group flex items-center gap-4 bg-bg/50 border border-border rounded-xl p-3 hover:border-white/20 transition-all duration-300"
+                >
+                  <div className="w-12 h-16 shrink-0 rounded-lg overflow-hidden bg-bg shadow-lg">
+                    {r.poster_url ? (
+                      <img src={r.poster_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><Film size={20} className="text-text-dim" /></div>
                     )}
                   </div>
-                  <div className="text-xs text-text-dim">
-                    {k === 'movie' ? 'Movie' : 'TV'} · TMDB #{r.tmdb_id}
-                    {year && ` · ${year}`}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <div className="font-bold text-sm truncate">{title}</div>
+                      {inDb && source === 'tmdb' && (
+                        <span className="text-[8px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/30 uppercase font-black tracking-wider">
+                          In Library
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-text-dim uppercase tracking-widest font-bold mt-0.5">
+                      {k === 'movie' ? 'Movie' : 'TV Series'} · TMDB #{r.tmdb_id}
+                      {(r.release_date || r.first_air_date) && ` · ${(r.release_date || r.first_air_date)?.slice(0, 4)}`}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {inDb ? (
+                      <Link
+                        href={k === 'movie' ? `/admin/manage/movie/${r.tmdb_id}` : `/admin/manage/tv/${r.tmdb_id}`}
+                        className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
+                      >
+                        Manage
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() => void addAndManage(r.tmdb_id, k as any)}
+                        className="px-4 py-2 bg-brand text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all shadow-lg shadow-brand/20 hover:scale-[1.05] active:scale-95"
+                      >
+                        Add & Manage
+                      </button>
+                    )}
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
-                {/* Actions */}
-                <div className="flex gap-2 px-2 relative z-10">
-                  {(r as any).in_db || source === 'local' ? (
-                    <Link
-                      href={href}
-                      className="text-xs bg-brand hover:bg-brand-hover text-white px-4 py-1.5 rounded-md font-medium transition-colors"
-                    >
-                      Edit
-                    </Link>
-                  ) : (
-                    <button
-                      onClick={() => addToLibrary(r.tmdb_id, k as any)}
-                      className="text-xs border border-brand text-brand hover:bg-brand hover:text-white px-4 py-1.5 rounded-md font-medium transition-colors"
-                    >
-                      Add to Library
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      {/* Bulk Import (Lower Priority) */}
+      {source === 'tmdb' && (
+        <div className="opacity-80 hover:opacity-100 transition-opacity">
+          <BulkImport />
         </div>
       )}
     </div>
