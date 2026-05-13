@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { api } from '@/lib/api';
-import { Upload, Download, Loader2, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
+import { Upload, Download, Loader2, CheckCircle2, AlertCircle, XCircle, Film, Tv } from 'lucide-react';
 
 type ImportResult = {
   success: boolean;
@@ -72,81 +72,117 @@ export default function BulkImport() {
   }
 
   return (
-    <div className="space-y-6 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Bulk Import</h2>
+    <div className="bg-surface border border-border rounded-3xl overflow-hidden">
+      <div className="px-8 py-6 border-b border-border bg-white/2">
+        <h2 className="text-xl font-bold tracking-tight">Bulk Content Import</h2>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="p-8 grid md:grid-cols-2 gap-0">
         {/* Movie Import */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm uppercase tracking-wider text-[var(--color-text-dim)]">
-              Import Movies (CSV)
-            </h3>
+        <div className="flex flex-col h-full pr-12">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Film size={18} className="text-brand" />
+              <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-text-dim">
+                Movies (CSV)
+              </h3>
+            </div>
             <button
               onClick={() => downloadSample('movie')}
-              className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-brand)] hover:underline flex items-center gap-1"
+              className="text-[10px] font-black uppercase tracking-widest text-brand hover:text-brand-hover flex items-center gap-2 transition-colors"
             >
-              <Download size={12} />
-              Sample CSV
+              <Download size={14} />
+              Sample Template
             </button>
           </div>
           
-          <div className="space-y-2">
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => setMovieFile(e.target.files?.[0] || null)}
-              className="w-full text-sm text-[var(--color-text-dim)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[var(--color-bg)] file:text-white hover:file:bg-white/10 file:transition-all"
-            />
+          <div className="flex-1 flex flex-col gap-6">
+            <div className="relative group flex-1">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => setMovieFile(e.target.files?.[0] || null)}
+                className="absolute inset-0 opacity-0 cursor-pointer z-10"
+              />
+              <div className={`h-32 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 transition-all ${movieFile ? 'border-brand/40 bg-brand/5' : 'border-border group-hover:border-white/20 group-hover:bg-white/5'}`}>
+                <Upload size={24} className={movieFile ? 'text-brand' : 'text-text-dim'} />
+                <div className="text-center">
+                  <div className="text-xs font-bold text-white px-4 truncate max-w-[240px]">
+                    {movieFile ? movieFile.name : 'Click to select CSV file'}
+                  </div>
+                  {!movieFile && <div className="text-[10px] text-text-dim uppercase tracking-widest mt-1">or drag and drop</div>}
+                </div>
+              </div>
+            </div>
+
             <button
               onClick={() => handleImport('movie')}
               disabled={!movieFile || !!loading}
-              className="w-full py-2 bg-white text-black font-bold rounded-lg hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+              className="w-full py-4 bg-brand text-white font-black rounded-2xl hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all shadow-lg shadow-brand/20 uppercase tracking-[0.2em] text-[10px]"
             >
-              {loading === 'movie' ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
-              Upload Movies
+              {loading === 'movie' ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
+              Import Movie Library
             </button>
           </div>
         </div>
 
         {/* TV Import */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm uppercase tracking-wider text-[var(--color-text-dim)]">
-              Import TV Episodes (CSV)
-            </h3>
+        <div className="flex flex-col h-full pl-12 border-t border-border pt-12 md:border-t-0 md:pt-0 md:border-l">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Tv size={18} className="text-brand" />
+              <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-text-dim">
+                TV Episodes (CSV)
+              </h3>
+            </div>
             <button
               onClick={() => downloadSample('tv')}
-              className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-brand)] hover:underline flex items-center gap-1"
+              className="text-[10px] font-black uppercase tracking-widest text-brand hover:text-brand-hover flex items-center gap-2 transition-colors"
             >
-              <Download size={12} />
-              Sample CSV
+              <Download size={14} />
+              Sample Template
             </button>
           </div>
 
-          <div className="space-y-2">
-            <input
-              type="number"
-              placeholder="TV TMDB ID (Required)"
-              value={tvTmdbId}
-              onChange={(e) => setTvTmdbId(e.target.value)}
-              className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)] transition-all"
-            />
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => setTvFile(e.target.files?.[0] || null)}
-              className="w-full text-sm text-[var(--color-text-dim)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[var(--color-bg)] file:text-white hover:file:bg-white/10 file:transition-all"
-            />
+          <div className="flex-1 flex flex-col gap-6">
+            <div className="relative">
+              <label className="absolute -top-2.5 left-4 px-2 bg-surface text-[10px] font-black uppercase tracking-widest text-text-dim z-10">
+                Series TMDB ID
+              </label>
+              <input
+                type="number"
+                placeholder="Enter TMDB ID"
+                value={tvTmdbId}
+                onChange={(e) => setTvTmdbId(e.target.value)}
+                className="w-full bg-white/5 border border-border rounded-xl px-4 py-4 text-sm font-bold outline-none focus:border-brand/50 transition-all placeholder:text-text-dim/20"
+              />
+            </div>
+
+            <div className="relative group">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => setTvFile(e.target.files?.[0] || null)}
+                className="absolute inset-0 opacity-0 cursor-pointer z-10"
+              />
+              <div className={`h-32 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 transition-all ${tvFile ? 'border-brand/40 bg-brand/5' : 'border-border group-hover:border-white/20 group-hover:bg-white/5'}`}>
+                <Upload size={24} className={tvFile ? 'text-brand' : 'text-text-dim'} />
+                <div className="text-center">
+                  <div className="text-xs font-bold text-white px-4 truncate max-w-[240px]">
+                    {tvFile ? tvFile.name : 'Click to select CSV file'}
+                  </div>
+                  {!tvFile && <div className="text-[10px] text-text-dim uppercase tracking-widest mt-1">or drag and drop</div>}
+                </div>
+              </div>
+            </div>
+
             <button
               onClick={() => handleImport('tv')}
               disabled={!tvFile || !tvTmdbId || !!loading}
-              className="w-full py-2 bg-white text-black font-bold rounded-lg hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+              className="w-full py-4 bg-brand text-white font-black rounded-2xl hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all shadow-lg shadow-brand/20 uppercase tracking-[0.2em] text-[10px]"
             >
-              {loading === 'tv' ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
-              Upload Episodes
+              {loading === 'tv' ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
+              Import TV Episodes
             </button>
           </div>
         </div>
@@ -154,34 +190,45 @@ export default function BulkImport() {
 
       {/* Result Display */}
       {result && (
-        <div className="mt-6 border-t border-[var(--color-border)] pt-6 animate-in fade-in slide-in-from-top-2">
-          <div className="flex flex-wrap gap-4 items-center mb-4">
-            <div className="flex items-center gap-2 bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-xs font-bold border border-green-500/20">
-              <CheckCircle2 size={14} />
-              {result.added_links !== undefined 
-                ? `${result.added_links} Links (${result.added_episodes} Episodes)` 
-                : `${result.added ?? 0} Added`}
+        <div className="bg-black/40 border-t border-border p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex flex-wrap gap-8 items-center mb-6">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-text-dim">Status</span>
+              <div className="flex items-center gap-2 bg-green-500/10 text-green-500 px-4 py-2 rounded-xl text-xs font-black border border-green-500/20">
+                <CheckCircle2 size={16} />
+                {result.added_links !== undefined 
+                  ? `${result.added_links} Links Added` 
+                  : `${result.added ?? 0} Titles Added`}
+              </div>
             </div>
-            <div className="flex items-center gap-2 bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded-full text-xs font-bold border border-yellow-500/20">
-              <AlertCircle size={14} />
-              {result.skipped} Skipped
+            
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-text-dim">Skipped</span>
+              <div className="flex items-center gap-2 bg-yellow-500/10 text-yellow-500 px-4 py-2 rounded-xl text-xs font-black border border-yellow-500/20">
+                <AlertCircle size={16} />
+                {result.skipped}
+              </div>
             </div>
-            <div className="flex items-center gap-2 bg-red-500/10 text-red-500 px-3 py-1 rounded-full text-xs font-bold border border-red-500/20">
-              <XCircle size={14} />
-              {result.failed} Failed
+
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-text-dim">Failed</span>
+              <div className="flex items-center gap-2 bg-red-500/10 text-red-500 px-4 py-2 rounded-xl text-xs font-black border border-red-500/20">
+                <XCircle size={16} />
+                {result.failed}
+              </div>
             </div>
           </div>
 
           {result.errors.length > 0 && (
-            <div className="bg-red-500/5 rounded-xl border border-red-500/10 overflow-hidden">
-              <div className="bg-red-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-red-500 border-b border-red-500/10">
-                Error Details
+            <div className="bg-red-500/5 rounded-2xl border border-red-500/10 overflow-hidden">
+              <div className="bg-red-500/10 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 border-b border-red-500/10">
+                Error Log
               </div>
-              <div className="max-h-40 overflow-y-auto p-4 space-y-2">
+              <div className="max-h-48 overflow-y-auto p-6 space-y-3 custom-scrollbar">
                 {result.errors.map((err, idx) => (
-                  <div key={idx} className="text-xs text-red-400 flex gap-2">
-                    <span className="font-bold whitespace-nowrap">Row {err.row}:</span>
-                    <span>{err.reason}</span>
+                  <div key={idx} className="text-xs text-red-300/70 flex gap-4 items-start">
+                    <span className="font-black text-red-500 bg-red-500/10 px-3 py-1 rounded text-[9px] mt-0.5">ROW {err.row}</span>
+                    <span className="font-bold leading-relaxed">{err.reason}</span>
                   </div>
                 ))}
               </div>

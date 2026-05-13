@@ -88,8 +88,10 @@ function ContentDashboard() {
   useEffect(() => {
     if (q.trim()) {
       void search();
-    } else {
+    } else if (source === 'local') {
       void loadDefault();
+    } else {
+      setResults([]);
     }
   }, [tab, source]);
 
@@ -135,7 +137,7 @@ function ContentDashboard() {
         </form>
       </div>
 
-      <BulkImport />
+      {source === 'tmdb' && <BulkImport />}
 
       {loading ? (
         <div className="grid place-items-center py-20">
