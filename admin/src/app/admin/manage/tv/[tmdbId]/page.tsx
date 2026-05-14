@@ -8,7 +8,8 @@ import {
   Loader2,
   Trash2,
   Plus,
-  X
+  X,
+  ExternalLink
 } from 'lucide-react';
 
 type Tv = {
@@ -116,59 +117,76 @@ function Inner({ tmdbId }: { tmdbId: number }) {
     show.release_year ?? (Number(show.first_air_date?.slice(0, 4)) || null);
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 max-w-5xl mx-auto">
       <Link
         href="/admin"
-        className="inline-flex items-center gap-1 text-sm text-text-dim hover:text-white"
+        className="inline-flex items-center gap-1 text-sm text-text-dim hover:text-white transition-colors"
       >
-        <ChevronLeft size={16} /> Back
+        <ChevronLeft size={16} /> Back to Library
       </Link>
-      <div className="flex flex-col sm:flex-row gap-4">
-        {show.poster_url && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={show.poster_url}
-            alt=""
-            className="w-24 rounded border border-border"
-          />
-        )}
-        <div className="flex-1">
-          <h1 className="text-2xl font-semibold">{show.name}</h1>
-          <div className="text-xs text-text-dim mt-1">
-            TV · TMDB #{show.tmdb_id}
-            {year && ` · ${year}`}
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              href={`/tv/${show.tmdb_id}`}
-              className="text-xs border border-border hover:border-white rounded-lg px-3 py-1.5 transition-all"
-            >
-              View public page
-            </Link>
-            <button
-              onClick={deleteShow}
-              className="text-xs border border-brand text-brand hover:bg-brand hover:text-white rounded-lg px-3 py-1.5 inline-flex items-center gap-1 transition-all"
-            >
-              <Trash2 size={14} /> Delete show
-            </button>
+
+      <div className="bg-surface border border-border p-4 md:p-6 rounded-2xl shadow-xl shadow-black/20">
+        <div className="flex flex-col md:flex-row gap-6">
+          {show.poster_url && (
+            <div className="w-32 md:w-40 mx-auto md:mx-0 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={show.poster_url}
+                alt=""
+                className="w-full rounded-xl border border-border shadow-2xl"
+              />
+            </div>
+          )}
+          <div className="flex-1 min-w-0 text-center md:text-left">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{show.name}</h1>
+            <div className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-text-dim flex flex-wrap justify-center md:justify-start items-center gap-2">
+              <span className="bg-white/5 px-2 py-1 rounded">TV Series</span>
+              <span className="w-1 h-1 rounded-full bg-white/20" />
+              <span>TMDB #{show.tmdb_id}</span>
+              {year && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-white/20" />
+                  <span>{year}</span>
+                </>
+              )}
+            </div>
+            {show.overview && (
+              <p className="text-sm text-text-dim mt-4 line-clamp-3 md:line-clamp-none max-w-2xl leading-relaxed">
+                {show.overview}
+              </p>
+            )}
+            <div className="mt-6 flex flex-wrap justify-center md:justify-start gap-3">
+              <Link
+                href={`/tv/${show.tmdb_id}`}
+                className="flex-1 sm:flex-none text-center text-xs font-black uppercase tracking-widest border border-border hover:border-white rounded-xl px-6 py-3 inline-flex items-center justify-center gap-2 transition-all bg-white/5"
+              >
+                <ExternalLink size={14} className="hidden xs:block" /> View Public
+              </Link>
+              <button
+                onClick={deleteShow}
+                className="flex-1 sm:flex-none text-center text-xs font-black uppercase tracking-widest border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl px-6 py-3 inline-flex items-center justify-center gap-2 transition-all"
+              >
+                <Trash2 size={14} className="hidden xs:block" /> Delete
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap gap-1.5 overflow-x-auto no-scrollbar">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface/50 p-4 rounded-xl border border-border">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 sm:pb-0">
             {seasons.map((s) => (
               <button
                 key={s}
                 onClick={() => setActiveSeason(s)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-4 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                   activeSeason === s
-                    ? 'bg-brand text-white'
-                    : 'bg-surface border border-border hover:border-white'
+                    ? 'bg-brand text-white shadow-lg shadow-brand/20'
+                    : 'bg-bg border border-border text-text-dim hover:text-white'
                 }`}
               >
-                SEASON {s}
+                Season {s}
               </button>
             ))}
           </div>
@@ -178,9 +196,9 @@ function Inner({ tmdbId }: { tmdbId: number }) {
                 setAddingEpisode(false);
                 setBulkAdding(true);
               }}
-              className="flex items-center gap-1 text-xs border border-brand text-brand px-3 py-1.5 rounded-lg hover:bg-brand/10 transition-all"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest border border-brand/30 text-brand px-4 py-2.5 rounded-lg hover:bg-brand/10 transition-all bg-brand/5"
             >
-              <Plus size={14} /> Bulk Add Links
+              <Plus size={14} /> Bulk Links
             </button>
             <button
               onClick={() => {
@@ -188,7 +206,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
                 setNewEpSeason(activeSeason || 1);
                 setAddingEpisode(true);
               }}
-              className="flex items-center gap-1 text-xs bg-brand text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-all"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-brand text-white px-4 py-2.5 rounded-lg hover:bg-brand/90 transition-all shadow-lg shadow-brand/20"
             >
               <Plus size={14} /> Add Episode
             </button>
@@ -254,13 +272,13 @@ function Inner({ tmdbId }: { tmdbId: number }) {
 
 function EpisodeAdminCard({ episode }: { episode: Episode }) {
   return (
-    <div className="bg-surface rounded-xl border border-border overflow-hidden transition-all hover:border-border-hover">
-      <div className="p-3 border-b border-border bg-bg/30 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded uppercase tracking-wider">
-            E{episode.episodeNumber}
+    <div className="bg-surface rounded-2xl border border-border overflow-hidden transition-all hover:border-white/10 group shadow-lg">
+      <div className="p-4 border-b border-border bg-white/2 flex items-center justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="shrink-0 text-[10px] font-black text-brand bg-brand/10 px-2 py-1 rounded-lg border border-brand/20 uppercase tracking-widest">
+            EP {episode.episodeNumber}
           </span>
-          <span className="font-bold text-sm truncate">
+          <span className="font-bold text-sm truncate text-white/90 group-hover:text-white transition-colors">
             {episode.title || `Episode ${episode.episodeNumber}`}
           </span>
         </div>
@@ -272,12 +290,13 @@ function EpisodeAdminCard({ episode }: { episode: Episode }) {
               }).then(() => window.location.reload());
             }
           }}
-          className="text-text-dim hover:text-red-400 p-1 transition-colors"
+          className="shrink-0 text-text-dim hover:text-red-400 p-2 transition-all hover:bg-red-400/10 rounded-lg"
+          title="Delete Episode"
         >
           <Trash2 size={16} />
         </button>
       </div>
-      <div className="p-4">
+      <div className="p-4 md:p-6">
         <LinksManager scope={{ kind: 'episode', episodeId: episode.id }} />
       </div>
     </div>
@@ -342,27 +361,27 @@ function BulkLinksForm({
   }
 
   return (
-    <form onSubmit={submit} className="bg-surface border border-brand/50 rounded-lg p-5 space-y-4 animate-in fade-in slide-in-from-top-2">
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <div>
-          <h3 className="font-bold text-brand">Bulk Add Links to Season {seasonNumber}</h3>
-          <p className="text-xs text-text-dim mt-1">Paste URLs (one per line). Line 1 goes to Episode 1, Line 2 to Episode 2, etc.</p>
+    <form onSubmit={submit} className="bg-surface border border-brand/40 rounded-2xl p-4 md:p-6 space-y-5 animate-in fade-in slide-in-from-top-2 shadow-2xl shadow-brand/10">
+      <div className="flex items-start justify-between border-b border-border pb-4">
+        <div className="min-w-0">
+          <h3 className="font-black text-brand uppercase tracking-widest text-xs">Bulk Add Links — Season {seasonNumber}</h3>
+          <p className="text-[10px] text-text-dim mt-1 leading-relaxed">Paste URLs (one per line). Order matches episode numbers.</p>
         </div>
-        <button type="button" onClick={onCancel} className="text-text-dim hover:text-white">
+        <button type="button" onClick={onCancel} className="text-text-dim hover:text-white p-1">
           <X size={20} />
         </button>
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="block">
-          <span className="text-[10px] uppercase tracking-wider text-text-dim">Quality</span>
-          <select value={quality} onChange={e => setQuality(e.target.value)} className="w-full mt-1 bg-bg border border-border rounded px-3 py-2 text-sm">
+          <span className="text-[10px] font-black uppercase tracking-widest text-text-dim mb-1.5 block">Quality</span>
+          <select value={quality} onChange={e => setQuality(e.target.value)} className="w-full bg-bg border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand/50 transition-all cursor-pointer">
             {['1080p', '720p', '480p', '4K'].map(q => <option key={q} value={q}>{q}</option>)}
           </select>
         </label>
         <label className="block">
-          <span className="text-[10px] uppercase tracking-wider text-text-dim">Type</span>
-          <select value={type} onChange={e => setType(e.target.value as 'direct'|'extract')} className="w-full mt-1 bg-bg border border-border rounded px-3 py-2 text-sm">
+          <span className="text-[10px] font-black uppercase tracking-widest text-text-dim mb-1.5 block">Type</span>
+          <select value={type} onChange={e => setType(e.target.value as 'direct'|'extract')} className="w-full bg-bg border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand/50 transition-all cursor-pointer">
             <option value="direct">Direct (.mp4 / .m3u8)</option>
             <option value="extract">Extract (worker)</option>
           </select>
@@ -370,12 +389,15 @@ function BulkLinksForm({
       </div>
 
       <div className="block">
-        <span className="text-[10px] uppercase tracking-wider text-text-dim mb-1 block">Languages</span>
-        <div className="flex flex-wrap gap-2">
+        <span className="text-[10px] font-black uppercase tracking-widest text-text-dim mb-2 block">Languages</span>
+        <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto no-scrollbar p-1">
           {langs.map(l => (
-            <label key={l} className="flex items-center gap-1.5 text-sm bg-bg border border-border rounded px-2 py-1 cursor-pointer hover:border-white">
+            <label key={l} className={`flex items-center gap-2 text-xs border rounded-lg px-3 py-1.5 cursor-pointer transition-all ${
+              selectedLangs.includes(l) ? 'bg-brand/20 border-brand text-white shadow-lg shadow-brand/10' : 'bg-bg border-border text-text-dim hover:border-white/20'
+            }`}>
               <input 
                 type="checkbox" 
+                className="hidden"
                 checked={selectedLangs.includes(l)}
                 onChange={(e) => {
                   if (e.target.checked) setSelectedLangs([...selectedLangs, l]);
@@ -385,30 +407,32 @@ function BulkLinksForm({
               {l}
             </label>
           ))}
-          {langs.length === 0 && <span className="text-xs text-text-dim">No languages found in database. Add them in a single link first.</span>}
+          {langs.length === 0 && <span className="text-[10px] text-text-dim italic">No languages found.</span>}
         </div>
       </div>
 
       <label className="block">
-        <span className="text-[10px] uppercase tracking-wider text-text-dim">URLs (One per line)</span>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-black uppercase tracking-widest text-text-dim">URLs (One per line)</span>
+          <div className="text-[10px] font-bold text-brand bg-brand/5 px-2 py-0.5 rounded border border-brand/10">
+            {urlsText.split('\n').filter(l => l.trim()).length} / {episodes.length} EPISODES
+          </div>
+        </div>
         <textarea 
           value={urlsText} 
           onChange={e => setUrlsText(e.target.value)} 
           required
           rows={6}
           placeholder={`https://example.com/s01e01.mp4\nhttps://example.com/s01e02.mp4`}
-          className="w-full mt-1 bg-bg border border-border rounded px-3 py-2 text-sm font-mono whitespace-pre" 
+          className="w-full bg-bg border border-border rounded-xl px-4 py-3 text-sm font-mono whitespace-pre outline-none focus:border-brand/50 transition-all" 
         />
-        <div className="text-[10px] text-text-dim mt-1 text-right">
-          Found {urlsText.split('\n').filter(l => l.trim()).length} lines / {episodes.length} episodes in Season {seasonNumber}
-        </div>
       </label>
 
-      <div className="flex justify-end gap-2 pt-2 border-t border-border">
-        <button type="button" onClick={onCancel} className="px-4 py-2 rounded-lg text-sm border border-border hover:bg-surface-2">
+      <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
+        <button type="button" onClick={onCancel} className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-border hover:bg-white/5 transition-all order-2 sm:order-1">
           Cancel
         </button>
-        <button disabled={busy} type="submit" className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+        <button disabled={busy} type="submit" className="w-full sm:w-auto bg-brand text-white px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all order-1 sm:order-2">
           {busy && <Loader2 size={14} className="animate-spin" />}
           Add Bulk Links
         </button>

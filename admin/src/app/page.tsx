@@ -39,14 +39,14 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen grid place-items-center bg-bg text-white p-4">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--color-brand)_0%,_transparent_70%)] opacity-[0.05]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--color-brand)_0%,transparent_70%)] opacity-[0.05]" />
       
       <div className="w-full max-w-md relative">
         <div className="text-center mb-10">
           <div className="inline-flex p-4 rounded-2xl bg-brand/10 border border-brand/20 mb-6">
             <Shield className="text-brand" size={48} />
           </div>
-          <h1 className="text-4xl font-bold tracking-tight mb-2">Admin Portal</h1>
+          <h1 className="text-4xl font-bold tracking-tight mb-2">MyOTT <span className="text-brand">Admin</span></h1>
           <p className="text-text-dim">Authorized access only. Please sign in to continue.</p>
         </div>
 

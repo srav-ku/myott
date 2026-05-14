@@ -45,47 +45,58 @@ function Inner({ tmdbId }: { tmdbId: number }) {
     );
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 max-w-5xl mx-auto">
       <Link
         href="/admin"
-        className="inline-flex items-center gap-1 text-sm text-text-dim hover:text-white"
+        className="inline-flex items-center gap-1 text-sm text-text-dim hover:text-white transition-colors"
       >
-        <ChevronLeft size={16} /> Back
+        <ChevronLeft size={16} /> Back to Library
       </Link>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        {movie.poster_url && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={movie.poster_url}
-            alt=""
-            className="w-24 rounded border border-border shadow-lg"
-          />
-        )}
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold truncate">{movie.title}</h1>
-          <div className="text-xs text-text-dim mt-1">
-            MOVIE · TMDB #{movie.tmdb_id}
-            {movie.release_year && ` · ${movie.release_year}`}
-          </div>
-          {movie.overview && (
-            <p className="text-sm text-text-dim mt-2 line-clamp-2 max-w-2xl">
-              {movie.overview}
-            </p>
+      <div className="bg-surface border border-border p-4 md:p-6 rounded-2xl shadow-xl shadow-black/20">
+        <div className="flex flex-col md:flex-row gap-6">
+          {movie.poster_url && (
+            <div className="w-32 md:w-40 mx-auto md:mx-0 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={movie.poster_url}
+                alt=""
+                className="w-full rounded-xl border border-border shadow-2xl"
+              />
+            </div>
           )}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link
-              href={`/movies/${movie.tmdb_id}`}
-              className="text-xs border border-border hover:border-white rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 transition-all"
-            >
-              <ExternalLink size={12} /> View public page
-            </Link>
-            <button
-              onClick={deleteMovie}
-              className="text-xs border border-brand text-brand hover:bg-brand hover:text-white rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 transition-all"
-            >
-              <Trash2 size={12} /> Delete movie
-            </button>
+          <div className="flex-1 min-w-0 text-center md:text-left">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{movie.title}</h1>
+            <div className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-text-dim flex flex-wrap justify-center md:justify-start items-center gap-2">
+              <span className="bg-white/5 px-2 py-1 rounded">Movie</span>
+              <span className="w-1 h-1 rounded-full bg-white/20" />
+              <span>TMDB #{movie.tmdb_id}</span>
+              {movie.release_year && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-white/20" />
+                  <span>{movie.release_year}</span>
+                </>
+              )}
+            </div>
+            {movie.overview && (
+              <p className="text-sm text-text-dim mt-4 line-clamp-3 md:line-clamp-none max-w-2xl leading-relaxed">
+                {movie.overview}
+              </p>
+            )}
+            <div className="mt-6 flex flex-wrap justify-center md:justify-start gap-3">
+              <Link
+                href={`/movies/${movie.tmdb_id}`}
+                className="flex-1 sm:flex-none text-center text-xs font-black uppercase tracking-widest border border-border hover:border-white rounded-xl px-6 py-3 inline-flex items-center justify-center gap-2 transition-all bg-white/5"
+              >
+                <ExternalLink size={14} /> View Public
+              </Link>
+              <button
+                onClick={deleteMovie}
+                className="flex-1 sm:flex-none text-center text-xs font-black uppercase tracking-widest border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl px-6 py-3 inline-flex items-center justify-center gap-2 transition-all"
+              >
+                <Trash2 size={14} /> Delete
+              </button>
+            </div>
           </div>
         </div>
       </div>

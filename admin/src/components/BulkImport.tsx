@@ -79,20 +79,20 @@ export default function BulkImport() {
 
       <div className="p-8 grid md:grid-cols-2 gap-0">
         {/* Movie Import */}
-        <div className="flex flex-col h-full pr-12">
-          <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col h-full p-6 md:p-8 md:pr-12">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-2">
               <Film size={18} className="text-brand" />
-              <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-text-dim">
+              <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-text-dim">
                 Movies (CSV)
               </h3>
             </div>
             <button
               onClick={() => downloadSample('movie')}
-              className="text-[10px] font-black uppercase tracking-widest text-brand hover:text-brand-hover flex items-center gap-2 transition-colors"
+              className="text-[10px] font-black uppercase tracking-widest text-brand hover:text-brand-hover flex items-center gap-2 transition-colors self-start sm:self-auto"
             >
               <Download size={14} />
-              Sample Template
+              Sample
             </button>
           </div>
           
@@ -106,9 +106,9 @@ export default function BulkImport() {
               />
               <div className={`h-32 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 transition-all ${movieFile ? 'border-brand/40 bg-brand/5' : 'border-border group-hover:border-white/20 group-hover:bg-white/5'}`}>
                 <Upload size={24} className={movieFile ? 'text-brand' : 'text-text-dim'} />
-                <div className="text-center">
-                  <div className="text-xs font-bold text-white px-4 truncate max-w-[240px]">
-                    {movieFile ? movieFile.name : 'Click to select CSV file'}
+                <div className="text-center px-4">
+                  <div className="text-xs font-bold text-white truncate max-w-[240px]">
+                    {movieFile ? movieFile.name : 'Click to select CSV'}
                   </div>
                   {!movieFile && <div className="text-[10px] text-text-dim uppercase tracking-widest mt-1">or drag and drop</div>}
                 </div>
@@ -121,32 +121,32 @@ export default function BulkImport() {
               className="w-full py-4 bg-brand text-white font-black rounded-2xl hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all shadow-lg shadow-brand/20 uppercase tracking-[0.2em] text-[10px]"
             >
               {loading === 'movie' ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
-              Import Movie Library
+              Import Movies
             </button>
           </div>
         </div>
 
         {/* TV Import */}
-        <div className="flex flex-col h-full pl-12 border-t border-border pt-12 md:border-t-0 md:pt-0 md:border-l">
-          <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col h-full p-6 md:p-8 md:pl-12 border-t border-border md:border-t-0 md:border-l">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-2">
               <Tv size={18} className="text-brand" />
-              <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-text-dim">
+              <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-text-dim">
                 TV Episodes (CSV)
               </h3>
             </div>
             <button
               onClick={() => downloadSample('tv')}
-              className="text-[10px] font-black uppercase tracking-widest text-brand hover:text-brand-hover flex items-center gap-2 transition-colors"
+              className="text-[10px] font-black uppercase tracking-widest text-brand hover:text-brand-hover flex items-center gap-2 transition-colors self-start sm:self-auto"
             >
               <Download size={14} />
-              Sample Template
+              Sample
             </button>
           </div>
 
           <div className="flex-1 flex flex-col gap-6">
             <div className="relative">
-              <label className="absolute -top-2.5 left-4 px-2 bg-surface text-[10px] font-black uppercase tracking-widest text-text-dim z-10">
+              <label className="absolute -top-2 left-4 px-2 bg-surface text-[9px] font-black uppercase tracking-widest text-text-dim z-10">
                 Series TMDB ID
               </label>
               <input
@@ -167,9 +167,9 @@ export default function BulkImport() {
               />
               <div className={`h-32 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 transition-all ${tvFile ? 'border-brand/40 bg-brand/5' : 'border-border group-hover:border-white/20 group-hover:bg-white/5'}`}>
                 <Upload size={24} className={tvFile ? 'text-brand' : 'text-text-dim'} />
-                <div className="text-center">
-                  <div className="text-xs font-bold text-white px-4 truncate max-w-[240px]">
-                    {tvFile ? tvFile.name : 'Click to select CSV file'}
+                <div className="text-center px-4">
+                  <div className="text-xs font-bold text-white truncate max-w-[240px]">
+                    {tvFile ? tvFile.name : 'Click to select CSV'}
                   </div>
                   {!tvFile && <div className="text-[10px] text-text-dim uppercase tracking-widest mt-1">or drag and drop</div>}
                 </div>
@@ -182,7 +182,7 @@ export default function BulkImport() {
               className="w-full py-4 bg-brand text-white font-black rounded-2xl hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all shadow-lg shadow-brand/20 uppercase tracking-[0.2em] text-[10px]"
             >
               {loading === 'tv' ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
-              Import TV Episodes
+              Import Episodes
             </button>
           </div>
         </div>

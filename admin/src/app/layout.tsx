@@ -4,8 +4,8 @@ import { AuthProvider } from '@/components/AuthProvider';
 import { AdProvider } from '@/components/AdProvider';
 
 export const metadata = {
-  title: 'STREAMR — Movies & TV',
-  description: 'OTT streaming platform',
+  title: 'MyOTT Admin',
+  description: 'OTT streaming platform management',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
