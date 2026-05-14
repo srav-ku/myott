@@ -1,5 +1,6 @@
 'use client';
 import { Suspense, useEffect, useState } from 'react';
+export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -9,12 +10,13 @@ import BulkImport from '@/components/BulkImport';
 
 type Result = {
   id: number;
+  tmdb_id: number;
   local_id?: number;
   media_type: 'movie' | 'tv';
   title?: string;
   name?: string;
-  poster_path: string | null;
-  backdrop_path: string | null;
+  poster_url: string | null;
+  backdrop_url: string | null;
   release_date?: string;
   first_air_date?: string;
   vote_average?: number;
@@ -71,17 +73,17 @@ function ContentDashboard() {
     try {
       // FORCE local Next.js API for the admin dashboard
       // by using a relative path without the api helper's baseUrl logic
-      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&type=${tab}&limit=40`);
-      const body = await res.json();
+      const res = await api<any>(`/api/search?q=${encodeURIComponent(query)}&type=${tab}&limit=40`);
       
-      if (res.ok && body.ok) {
+      if (res.ok) {
+        const body = res.data;
         if (source === 'local') {
-          setResults(body.data.results.filter((x: any) => x.in_db));
+          setResults(body.results.filter((x: any) => x.in_db));
         } else {
-          setResults(body.data.results);
+          setResults(body.results);
         }
       } else {
-        console.error('Search API failed:', body.error);
+        console.error('Search API failed:', res.error);
       }
     } catch (e) {
       console.error('Search exception:', e);
@@ -95,7 +97,7 @@ function ContentDashboard() {
     if (r.ok) {
       showAlert({ type: 'success', message: 'Successfully added to Library!' });
       // Update UI to show it's in DB now
-      setResults(prev => prev.map(item => item.id === tmdbId ? { ...item, in_db: true } : item));
+      setResults(prev => prev.map(item => item.tmdb_id === tmdbId ? { ...item, in_db: true } : item));
     } else {
       showAlert({ type: 'error', message: r.error || 'Failed to add to library' });
     }
@@ -207,11 +209,11 @@ function ContentDashboard() {
               const k = r.media_type || tab;
               const title = r.title || r.name || '(untitled)';
               const inDb = r.in_db || source === 'local';
-              const poster = r.poster_path ? `https://image.tmdb.org/t/p/w500${r.poster_path}` : null;
+              const poster = r.poster_url;
               
               return (
                 <div
-                  key={`${k}-${r.id || idx}`}
+                  key={`${k}-${r.tmdb_id || idx}`}
                   className="group flex flex-col sm:flex-row sm:items-center gap-3 md:gap-4 bg-bg/50 border border-border rounded-xl p-3 hover:border-white/20 transition-all duration-300"
                 >
                   <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -252,17 +254,17 @@ function ContentDashboard() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 w-full sm:w-auto">
+                    <div className="flex gap-2 w-full sm:w-auto">
                     {inDb ? (
                       <Link
-                        href={k === 'movie' ? `/admin/manage/movie/${r.id}` : `/admin/manage/tv/${r.id}`}
+                        href={k === 'movie' ? `/admin/manage/movie/${r.tmdb_id}` : `/admin/manage/tv/${r.tmdb_id}`}
                         className="flex-1 sm:flex-none text-center px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
                       >
                         Manage
                       </Link>
                     ) : (
                       <button
-                        onClick={() => void addAndManage(r.id, k as any)}
+                        onClick={() => void addAndManage(r.tmdb_id, k as any)}
                         className="flex-1 sm:flex-none px-4 py-2 bg-brand text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
                       >
                         Add & Manage

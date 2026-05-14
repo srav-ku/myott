@@ -81,8 +81,12 @@ app.get('/:tmdbId', async (c) => {
         genres: (detail.genres || []).map((g: any) => g.name),
       }).returning();
       movie = inserted;
-    } catch (err) {
-      return c.json({ error: 'Movie not found in DB or TMDB' }, 404);
+    } catch (err: any) {
+      console.error(`[movies] Failed to process TMDB ID ${tmdbId}:`, err);
+      return c.json({ 
+        error: `Backend Error: ${err.message || 'Unknown error during ingest'}`,
+        tmdbId 
+      }, 500);
     }
   }
 

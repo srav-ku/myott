@@ -53,7 +53,7 @@ export async function api<T = unknown>(
   init: RequestInit = {},
 ): Promise<ApiResult<T>> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-  const url = path.startsWith('http') ? path : `${baseUrl}${path}`;
+  const url = (path.startsWith('http') || !baseUrl) ? path : `${baseUrl}${path}`;
 
   const headers: Record<string, string> = {
     ...(init.body && !(init.body instanceof FormData)

@@ -102,9 +102,12 @@ app.get('/:tmdbId', async (c) => {
           }
         }
       }
-    } catch (err) {
-      console.error(err);
-      return c.json({ error: 'TV Show not found in DB or TMDB' }, 404);
+    } catch (err: any) {
+      console.error(`[tv] Failed to process TMDB ID ${tmdbId}:`, err);
+      return c.json({ 
+        error: `Backend Error: ${err.message || 'Unknown error during ingest'}`,
+        tmdbId 
+      }, 500);
     }
   }
 
@@ -139,7 +142,7 @@ app.get('/:tmdbId', async (c) => {
       }
       // Re-fetch after ingestion
       episodes = await db.select().from(schema.episodes).where(eq(schema.episodes.tvId, series.id));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to ingest missing episodes for TV', err);
     }
   }
