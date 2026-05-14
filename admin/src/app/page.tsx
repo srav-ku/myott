@@ -39,7 +39,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen grid place-items-center bg-bg text-white p-4">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--color-brand)_0%,transparent_70%)] opacity-[0.05]" />
+      <div className="absolute inset-0 bg-brand/5 opacity-50" />
       
       <div className="w-full max-w-md relative">
         <div className="text-center mb-10">
@@ -50,10 +50,10 @@ export default function LoginPage() {
           <p className="text-text-dim">Authorized access only. Please sign in to continue.</p>
         </div>
 
-        <div className="bg-surface/50 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl">
+        <div className="bg-surface border border-border rounded-3xl p-8">
           {user && !isAdmin ? (
             <div className="text-center space-y-4">
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+              <div className="p-3 rounded-lg bg-brand/10 border border-brand/20 text-brand text-sm">
                 Access Denied. Your account does not have administrator privileges.
               </div>
               <button 
@@ -84,7 +84,7 @@ export default function LoginPage() {
           )}
 
           {error && (
-            <div className="mt-6 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+            <div className="mt-6 p-3 rounded-lg bg-brand/10 border border-brand/20 text-brand text-sm text-center">
               {error}
             </div>
           )}

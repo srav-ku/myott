@@ -2,14 +2,14 @@
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { useAlert } from '@/components/AlertModal';
 import { LinksManager } from '@/components/LinksManager';
 import {
   ChevronLeft,
   Loader2,
   Trash2,
   Plus,
-  X,
-  ExternalLink
+  X
 } from 'lucide-react';
 
 type Tv = {
@@ -41,6 +41,7 @@ type Episode = {
 };
 
 function Inner({ tmdbId }: { tmdbId: number }) {
+  const { showAlert } = useAlert();
   const [show, setShow] = useState<Tv | null>(null);
   const [episodes, setEpisodes] = useState<Episode[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -65,7 +66,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
       void loadEpisodes(show!.id);
       setActiveSeason(newEpSeason);
     } else {
-      alert(r.error);
+      showAlert({ type: 'error', message: r.error || 'Failed to add episode' });
     }
   }
 
@@ -95,10 +96,15 @@ function Inner({ tmdbId }: { tmdbId: number }) {
 
   async function deleteShow() {
     if (!show) return;
-    if (!confirm(`Delete "${show.name}" with all episodes & links?`)) return;
-    const r = await api(`/api/admin/tv/${show.id}`, { method: 'DELETE' });
-    if (r.ok) window.location.href = '/admin';
-    else alert(r.error);
+    showAlert({
+      type: 'confirm',
+      message: `Delete "${show.name}" with all episodes & links?`,
+      onConfirm: async () => {
+        const r = await api(`/api/admin/tv/${show.id}`, { method: 'DELETE' });
+        if (r.ok) window.location.href = '/admin';
+        else showAlert({ type: 'error', message: r.error || 'Failed to delete series' });
+      }
+    });
   }
 
   if (err)
@@ -125,7 +131,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
         <ChevronLeft size={16} /> Back to Library
       </Link>
 
-      <div className="bg-surface border border-border p-4 md:p-6 rounded-2xl shadow-xl shadow-black/20">
+      <div className="bg-surface border border-border p-4 md:p-6 rounded-2xl">
         <div className="flex flex-col md:flex-row gap-6">
           {show.poster_url && (
             <div className="w-32 md:w-40 mx-auto md:mx-0 shrink-0">
@@ -156,15 +162,10 @@ function Inner({ tmdbId }: { tmdbId: number }) {
               </p>
             )}
             <div className="mt-6 flex flex-wrap justify-center md:justify-start gap-3">
-              <Link
-                href={`/tv/${show.tmdb_id}`}
-                className="flex-1 sm:flex-none text-center text-xs font-black uppercase tracking-widest border border-border hover:border-white rounded-xl px-6 py-3 inline-flex items-center justify-center gap-2 transition-all bg-white/5"
-              >
-                <ExternalLink size={14} className="hidden xs:block" /> View Public
-              </Link>
+
               <button
                 onClick={deleteShow}
-                className="flex-1 sm:flex-none text-center text-xs font-black uppercase tracking-widest border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl px-6 py-3 inline-flex items-center justify-center gap-2 transition-all"
+                className="flex-1 sm:flex-none text-center text-xs font-black uppercase tracking-widest border border-brand/30 text-brand hover:bg-brand hover:text-white rounded-xl px-6 py-3 inline-flex items-center justify-center gap-2 transition-all"
               >
                 <Trash2 size={14} className="hidden xs:block" /> Delete
               </button>
@@ -182,7 +183,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
                 onClick={() => setActiveSeason(s)}
                 className={`px-4 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                   activeSeason === s
-                    ? 'bg-brand text-white shadow-lg shadow-brand/20'
+                    ? 'bg-brand text-white'
                     : 'bg-bg border border-border text-text-dim hover:text-white'
                 }`}
               >
@@ -206,7 +207,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
                 setNewEpSeason(activeSeason || 1);
                 setAddingEpisode(true);
               }}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-brand text-white px-4 py-2.5 rounded-lg hover:bg-brand/90 transition-all shadow-lg shadow-brand/20"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-brand text-white px-4 py-2.5 rounded-lg hover:bg-brand/90 transition-all"
             >
               <Plus size={14} /> Add Episode
             </button>
@@ -269,10 +270,10 @@ function Inner({ tmdbId }: { tmdbId: number }) {
     </div>
   );
 }
-
 function EpisodeAdminCard({ episode }: { episode: Episode }) {
+  const { showAlert } = useAlert();
   return (
-    <div className="bg-surface rounded-2xl border border-border overflow-hidden transition-all hover:border-white/10 group shadow-lg">
+    <div className="bg-surface rounded-2xl border border-border overflow-hidden transition-all hover:border-white/10 group">
       <div className="p-4 border-b border-border bg-white/2 flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <span className="shrink-0 text-[10px] font-black text-brand bg-brand/10 px-2 py-1 rounded-lg border border-brand/20 uppercase tracking-widest">
@@ -284,13 +285,17 @@ function EpisodeAdminCard({ episode }: { episode: Episode }) {
         </div>
         <button
           onClick={() => {
-            if (confirm('Delete this episode?')) {
-              api(`/api/admin/tv/${episode.tvId}/episodes/${episode.id}`, {
-                method: 'DELETE',
-              }).then(() => window.location.reload());
-            }
+            showAlert({
+              type: 'confirm',
+              message: 'Delete this episode?',
+              onConfirm: () => {
+                api(`/api/admin/tv/${episode.tvId}/episodes/${episode.id}`, {
+                  method: 'DELETE',
+                }).then(() => window.location.reload());
+              }
+            });
           }}
-          className="shrink-0 text-text-dim hover:text-red-400 p-2 transition-all hover:bg-red-400/10 rounded-lg"
+          className="shrink-0 text-text-dim hover:text-brand p-2 transition-all hover:bg-brand/10 rounded-lg"
           title="Delete Episode"
         >
           <Trash2 size={16} />
@@ -314,6 +319,7 @@ function BulkLinksForm({
   onSuccess: () => void;
   onCancel: () => void;
 }) {
+  const { showAlert } = useAlert();
   const [quality, setQuality] = useState('1080p');
   const [type, setType] = useState<'direct' | 'extract'>('direct');
   const [urlsText, setUrlsText] = useState('');
@@ -356,12 +362,12 @@ function BulkLinksForm({
     }
     
     setBusy(false);
-    alert(`Successfully added ${successCount} links to Season ${seasonNumber}!`);
+    showAlert({ type: 'success', message: `Successfully added ${successCount} links to Season ${seasonNumber}!` });
     onSuccess();
   }
 
   return (
-    <form onSubmit={submit} className="bg-surface border border-brand/40 rounded-2xl p-4 md:p-6 space-y-5 animate-in fade-in slide-in-from-top-2 shadow-2xl shadow-brand/10">
+    <form onSubmit={submit} className="bg-surface border border-brand/40 rounded-2xl p-4 md:p-6 space-y-5 animate-in fade-in slide-in-from-top-2">
       <div className="flex items-start justify-between border-b border-border pb-4">
         <div className="min-w-0">
           <h3 className="font-black text-brand uppercase tracking-widest text-xs">Bulk Add Links — Season {seasonNumber}</h3>
@@ -393,7 +399,7 @@ function BulkLinksForm({
         <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto no-scrollbar p-1">
           {langs.map(l => (
             <label key={l} className={`flex items-center gap-2 text-xs border rounded-lg px-3 py-1.5 cursor-pointer transition-all ${
-              selectedLangs.includes(l) ? 'bg-brand/20 border-brand text-white shadow-lg shadow-brand/10' : 'bg-bg border-border text-text-dim hover:border-white/20'
+              selectedLangs.includes(l) ? 'bg-brand/20 border-brand text-white' : 'bg-bg border-border text-text-dim hover:border-white/20'
             }`}>
               <input 
                 type="checkbox" 
@@ -432,7 +438,7 @@ function BulkLinksForm({
         <button type="button" onClick={onCancel} className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-border hover:bg-white/5 transition-all order-2 sm:order-1">
           Cancel
         </button>
-        <button disabled={busy} type="submit" className="w-full sm:w-auto bg-brand text-white px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all order-1 sm:order-2">
+        <button disabled={busy} type="submit" className="w-full sm:w-auto bg-brand text-white px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all order-1 sm:order-2">
           {busy && <Loader2 size={14} className="animate-spin" />}
           Add Bulk Links
         </button>

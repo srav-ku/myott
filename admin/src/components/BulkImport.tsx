@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useAlert } from './AlertModal';
 import { api } from '@/lib/api';
 import { Upload, Download, Loader2, CheckCircle2, AlertCircle, XCircle, Film, Tv } from 'lucide-react';
 
@@ -21,12 +22,14 @@ export default function BulkImport() {
   const [loading, setLoading] = useState<'movie' | 'tv' | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
 
+  const { showAlert } = useAlert();
+
   async function handleImport(type: 'movie' | 'tv') {
     const file = type === 'movie' ? movieFile : tvFile;
     if (!file) return;
 
     if (type === 'tv' && !tvTmdbId) {
-      alert('Please enter a TV TMDB ID');
+      showAlert({ type: 'error', message: 'Please enter a TV TMDB ID' });
       return;
     }
 
@@ -47,11 +50,11 @@ export default function BulkImport() {
       if (r.ok) {
         setResult(r.data);
       } else {
-        alert(r.error || 'Import failed');
+        showAlert({ type: 'error', message: r.error || 'Import failed' });
       }
     } catch (err) {
       console.error(err);
-      alert('An error occurred during import');
+      showAlert({ type: 'error', message: 'An error occurred during import' });
     } finally {
       setLoading(null);
     }
@@ -118,7 +121,7 @@ export default function BulkImport() {
             <button
               onClick={() => handleImport('movie')}
               disabled={!movieFile || !!loading}
-              className="w-full py-4 bg-brand text-white font-black rounded-2xl hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all shadow-lg shadow-brand/20 uppercase tracking-[0.2em] text-[10px]"
+              className="w-full py-4 bg-brand text-white font-black rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all uppercase tracking-[0.2em] text-[10px]"
             >
               {loading === 'movie' ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
               Import Movies
@@ -179,7 +182,7 @@ export default function BulkImport() {
             <button
               onClick={() => handleImport('tv')}
               disabled={!tvFile || !tvTmdbId || !!loading}
-              className="w-full py-4 bg-brand text-white font-black rounded-2xl hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all shadow-lg shadow-brand/20 uppercase tracking-[0.2em] text-[10px]"
+              className="w-full py-4 bg-brand text-white font-black rounded-2xl disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all uppercase tracking-[0.2em] text-[10px]"
             >
               {loading === 'tv' ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
               Import Episodes
@@ -212,7 +215,7 @@ export default function BulkImport() {
 
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-black uppercase tracking-widest text-text-dim">Failed</span>
-              <div className="flex items-center gap-2 bg-red-500/10 text-red-500 px-4 py-2 rounded-xl text-xs font-black border border-red-500/20">
+              <div className="flex items-center gap-2 bg-brand/10 text-brand px-4 py-2 rounded-xl text-xs font-black border border-brand/20">
                 <XCircle size={16} />
                 {result.failed}
               </div>
@@ -220,14 +223,14 @@ export default function BulkImport() {
           </div>
 
           {result.errors.length > 0 && (
-            <div className="bg-red-500/5 rounded-2xl border border-red-500/10 overflow-hidden">
-              <div className="bg-red-500/10 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 border-b border-red-500/10">
+            <div className="bg-brand/5 rounded-2xl border border-brand/10 overflow-hidden">
+              <div className="bg-brand/10 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-brand border-b border-brand/10">
                 Error Log
               </div>
               <div className="max-h-48 overflow-y-auto p-6 space-y-3 custom-scrollbar">
                 {result.errors.map((err, idx) => (
-                  <div key={idx} className="text-xs text-red-300/70 flex gap-4 items-start">
-                    <span className="font-black text-red-500 bg-red-500/10 px-3 py-1 rounded text-[9px] mt-0.5">ROW {err.row}</span>
+                  <div key={idx} className="text-xs text-brand/70 flex gap-4 items-start">
+                    <span className="font-black text-brand bg-brand/10 px-3 py-1 rounded text-[9px] mt-0.5">ROW {err.row}</span>
                     <span className="font-bold leading-relaxed">{err.reason}</span>
                   </div>
                 ))}

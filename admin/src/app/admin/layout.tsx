@@ -38,14 +38,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-bg text-white">
       {/* Top Header */}
-      <header className="h-14 border-b border-border flex items-center justify-between px-4 md:px-8 bg-surface/50 backdrop-blur sticky top-0 z-50">
+      <header className="h-14 border-b border-border flex items-center justify-between px-4 md:px-8 bg-surface sticky top-0 z-50">
         <Link href="/admin" className="font-bold text-lg tracking-tight whitespace-nowrap">
           MyOTT <span className="text-brand">Admin</span>
         </Link>
 
         <button
           onClick={() => signOut()}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-brand hover:bg-brand/10 transition-colors"
           title="Sign Out"
         >
           <LogOut size={16} />
@@ -54,7 +54,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </header>
 
       {/* Secondary Navigation */}
-      <div className="sticky top-14 z-40 bg-bg/80 backdrop-blur-md border-b border-border">
+      <div className="sticky top-14 z-40 bg-bg border-b border-border">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <nav className="flex items-center gap-1 py-3">
             {navItems.map((item) => {
@@ -71,7 +71,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   href={item.href}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
                     active
-                      ? 'bg-brand text-white shadow-lg shadow-brand/20'
+                      ? 'bg-brand text-white'
                       : 'text-text-dim hover:text-white hover:bg-white/5'
                   }`}
                 >

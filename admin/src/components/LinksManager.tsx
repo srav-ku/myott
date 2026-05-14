@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useAlert } from './AlertModal';
 import { QUALITIES, type Quality } from '@/lib/quality';
 import { api } from '@/lib/api';
 import { Plus, Trash2, Loader2, Save, X, AlertCircle, Edit2 } from 'lucide-react';
@@ -85,10 +86,17 @@ export function LinksManager({
     }
   }
 
+  const { showAlert } = useAlert();
+
   async function remove(id: number) {
-    if (!confirm('Delete this link?')) return;
-    await api(`/api/admin/links/${id}`, { method: 'DELETE' });
-    void loadLinks();
+    showAlert({
+      type: 'confirm',
+      message: 'Delete this link?',
+      onConfirm: async () => {
+        await api(`/api/admin/links/${id}`, { method: 'DELETE' });
+        void loadLinks();
+      }
+    });
   }
 
   return (
@@ -98,7 +106,7 @@ export function LinksManager({
         <button
           onClick={() => setShowAdd((s) => !s)}
           className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-lg px-4 py-2 transition-all ${
-            showAdd ? 'bg-white/5 text-white' : 'bg-brand text-white shadow-lg shadow-brand/20'
+            showAdd ? 'bg-white/5 text-white' : 'bg-brand text-white'
           }`}
         >
           {showAdd ? <X size={14} /> : <Plus size={14} />}
@@ -117,7 +125,7 @@ export function LinksManager({
       )}
 
       {error && (
-        <div className="text-xs text-red-400 bg-red-400/10 border border-red-400/20 p-3 rounded-lg flex items-center gap-2">
+        <div className="text-xs text-brand bg-brand/10 border border-brand/20 p-3 rounded-lg flex items-center gap-2">
           <AlertCircle size={14} /> {error}
         </div>
       )}
@@ -276,7 +284,7 @@ function NewLinkForm({
         <button
           type="submit"
           disabled={saving}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand text-white text-xs font-black uppercase tracking-widest rounded-xl px-8 py-3 shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand text-white text-xs font-black uppercase tracking-widest rounded-xl px-8 py-3 transition-all"
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           Save Link
@@ -389,7 +397,7 @@ function LinkItem({
             <button
               onClick={save}
               disabled={busy}
-              className="text-[10px] font-black uppercase tracking-widest px-6 py-2 bg-brand text-white rounded-lg shadow-lg shadow-brand/20 transition-all inline-flex items-center gap-2"
+              className="text-[10px] font-black uppercase tracking-widest px-6 py-2 bg-brand text-white rounded-lg transition-all inline-flex items-center gap-2"
             >
               {busy ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
               Save
@@ -437,7 +445,7 @@ function LinkItem({
             </button>
             <button
               onClick={onDelete}
-              className="p-2 text-text-dim hover:text-red-400 hover:bg-red-400/10 rounded-lg border border-transparent hover:border-red-400/20 transition-all"
+              className="p-2 text-text-dim hover:text-brand hover:bg-brand/10 rounded-lg border border-transparent hover:border-brand/20 transition-all"
               title="Delete"
             >
               <Trash2 size={14} />

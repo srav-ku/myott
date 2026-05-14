@@ -24,24 +24,24 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-8 shadow-2xl"
+        className="w-full max-w-md rounded-xl bg-surface border border-border p-8 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-2xl font-bold">Welcome</h2>
           <button
             onClick={onClose}
-            className="text-[var(--color-text-dim)] hover:text-white transition-colors"
+            className="text-text-dim hover:text-white transition-colors"
             aria-label="Close"
           >
             <X size={24} />
           </button>
         </div>
-        <p className="text-[var(--color-text-dim)] mb-8">
+        <p className="text-text-dim mb-8">
           Sign in to sync your watchlist and history across devices.
         </p>
 
@@ -74,20 +74,20 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
 
           <button
             onClick={onClose}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-[var(--color-border)] px-4 py-3 font-semibold text-white hover:bg-white/5 transition-all"
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-border px-4 py-3 font-semibold text-white hover:bg-white/5 transition-all"
           >
-            <Globe size={20} className="text-[var(--color-text-dim)]" />
+            <Globe size={20} className="text-text-dim" />
             Continue as Guest
           </button>
         </div>
 
         {err && (
-          <div className="mt-4 rounded-md bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">
+          <div className="mt-4 rounded-md bg-brand/10 border border-brand/20 p-3 text-sm text-brand">
             {err}
           </div>
         )}
 
-        <div className="mt-8 text-center text-xs text-[var(--color-text-dim)] uppercase tracking-widest">
+        <div className="mt-8 text-center text-xs text-text-dim uppercase tracking-widest">
           Secured by Firebase
         </div>
       </div>

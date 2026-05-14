@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
-import { AdProvider } from '@/components/AdProvider';
+import { AlertProvider } from '@/components/AlertModal';
 
 export const metadata = {
   title: 'MyOTT Admin',
@@ -13,7 +13,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <AuthProvider>
-          {children}
+          <AlertProvider>
+            {children}
+          </AlertProvider>
         </AuthProvider>
       </body>
     </html>

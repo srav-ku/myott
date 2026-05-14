@@ -3,6 +3,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useAlert } from '@/components/AlertModal';
 import { Search, Loader2, ArrowRight, Tv, Film } from 'lucide-react';
 import BulkImport from '@/components/BulkImport';
 
@@ -29,6 +30,7 @@ type Stats = {
 };
 
 function ContentDashboard() {
+  const { showAlert } = useAlert();
   const sp = useSearchParams();
   const router = useRouter();
   const [tab, setTab] = useState<'movie' | 'tv'>(
@@ -91,11 +93,11 @@ function ContentDashboard() {
   async function addToLibrary(tmdbId: number, kind: 'movie' | 'tv') {
     const r = await api(`/api/${kind === 'movie' ? 'movies' : 'tv'}/${tmdbId}`);
     if (r.ok) {
-      alert(`Successfully added to Library!`);
+      showAlert({ type: 'success', message: 'Successfully added to Library!' });
       // Update UI to show it's in DB now
       setResults(prev => prev.map(item => item.id === tmdbId ? { ...item, in_db: true } : item));
     } else {
-      alert(r.error || 'Failed to add to library');
+      showAlert({ type: 'error', message: r.error || 'Failed to add to library' });
     }
   }
 
@@ -122,12 +124,12 @@ function ContentDashboard() {
         setLoading(false);
         router.push(`/admin/manage/${kind}/${tmdbId}`);
       } else {
-        alert(r.error || 'Failed to add to library');
+        showAlert({ type: 'error', message: r.error || 'Failed to add to library' });
         setLoading(false);
       }
     } catch (err) {
       console.error('Quick Add Error:', err);
-      alert('An unexpected error occurred. Please try again.');
+      showAlert({ type: 'error', message: 'An unexpected error occurred. Please try again.' });
       setLoading(false);
     }
   }
@@ -135,7 +137,7 @@ function ContentDashboard() {
   return (
     <div className="space-y-6 md:space-y-8 max-w-5xl mx-auto">
       {/* Header Row: Tabs & Search */}
-      <div className="flex flex-col lg:flex-row gap-4 md:gap-6 items-stretch lg:items-center justify-between bg-surface border border-border p-4 md:p-6 rounded-2xl shadow-xl shadow-black/20">
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-6 items-stretch lg:items-center justify-between bg-surface border border-border p-4 md:p-6 rounded-2xl">
         <div className="inline-flex rounded-xl bg-bg border border-border p-1.5 self-start">
           {(['movie', 'tv'] as const).map((t) => (
             <button
@@ -143,7 +145,7 @@ function ContentDashboard() {
               onClick={() => setTab(t)}
               className={`px-4 md:px-6 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all ${
                 tab === t
-                  ? 'bg-brand text-white shadow-lg shadow-brand/40'
+                  ? 'bg-brand text-white'
                   : 'text-text-dim hover:text-white'
               }`}
             >
@@ -170,11 +172,11 @@ function ContentDashboard() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={`Search by name, TMDB ID or URL…`}
-            className="w-full bg-bg border border-border rounded-xl pl-11 pr-24 md:pr-32 py-3 text-sm font-medium outline-none focus:border-brand/50 focus:ring-4 focus:ring-brand/5 transition-all"
+            className="w-full bg-bg border border-border rounded-xl pl-11 pr-24 md:pr-32 py-3 text-sm font-medium outline-none focus:border-brand/50 transition-all"
           />
           <button
             type="submit"
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 md:px-4 py-1.5 bg-brand text-white text-[10px] md:text-xs font-black uppercase tracking-widest rounded-lg hover:bg-brand/90 active:scale-95 transition-all shadow-lg shadow-brand/20"
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 md:px-4 py-1.5 bg-brand text-white text-[10px] md:text-xs font-black uppercase tracking-widest rounded-lg hover:bg-brand/90 transition-all"
           >
             Search
           </button>
@@ -213,7 +215,7 @@ function ContentDashboard() {
                   className="group flex flex-col sm:flex-row sm:items-center gap-3 md:gap-4 bg-bg/50 border border-border rounded-xl p-3 hover:border-white/20 transition-all duration-300"
                 >
                   <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="w-10 h-14 md:w-12 md:h-16 shrink-0 rounded-lg overflow-hidden bg-bg shadow-lg">
+                    <div className="w-10 h-14 md:w-12 md:h-16 shrink-0 rounded-lg overflow-hidden bg-bg">
                       {poster ? (
                         <img src={poster} alt="" className="w-full h-full object-cover" />
                       ) : (
@@ -261,7 +263,7 @@ function ContentDashboard() {
                     ) : (
                       <button
                         onClick={() => void addAndManage(r.id, k as any)}
-                        className="flex-1 sm:flex-none px-4 py-2 bg-brand text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all shadow-lg shadow-brand/20 hover:scale-[1.05] active:scale-95"
+                        className="flex-1 sm:flex-none px-4 py-2 bg-brand text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
                       >
                         Add & Manage
                       </button>

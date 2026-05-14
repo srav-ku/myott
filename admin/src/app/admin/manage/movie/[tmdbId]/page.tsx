@@ -2,8 +2,9 @@
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { useAlert } from '@/components/AlertModal';
 import { LinksManager } from '@/components/LinksManager';
-import { ChevronLeft, Loader2, Trash2, ExternalLink } from 'lucide-react';
+import { ChevronLeft, Loader2, Trash2 } from 'lucide-react';
 
 type Movie = {
   id: number;
@@ -15,6 +16,7 @@ type Movie = {
 };
 
 function Inner({ tmdbId }: { tmdbId: number }) {
+  const { showAlert } = useAlert();
   const [movie, setMovie] = useState<Movie | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -28,11 +30,15 @@ function Inner({ tmdbId }: { tmdbId: number }) {
 
   async function deleteMovie() {
     if (!movie) return;
-    if (!confirm(`Delete "${movie.title}" and all its links from the catalogue?`))
-      return;
-    const r = await api(`/api/admin/movies/${movie.id}`, { method: 'DELETE' });
-    if (r.ok) window.location.href = '/admin';
-    else alert(r.error);
+    showAlert({
+      type: 'confirm',
+      message: `Delete "${movie.title}" and all its links from the catalogue?`,
+      onConfirm: async () => {
+        const r = await api(`/api/admin/movies/${movie.id}`, { method: 'DELETE' });
+        if (r.ok) window.location.href = '/admin';
+        else showAlert({ type: 'error', message: r.error || 'Failed to delete movie' });
+      }
+    });
   }
 
   if (err)
@@ -53,7 +59,7 @@ function Inner({ tmdbId }: { tmdbId: number }) {
         <ChevronLeft size={16} /> Back to Library
       </Link>
 
-      <div className="bg-surface border border-border p-4 md:p-6 rounded-2xl shadow-xl shadow-black/20">
+      <div className="bg-surface border border-border p-4 md:p-6 rounded-2xl">
         <div className="flex flex-col md:flex-row gap-6">
           {movie.poster_url && (
             <div className="w-32 md:w-40 mx-auto md:mx-0 shrink-0">
@@ -84,15 +90,10 @@ function Inner({ tmdbId }: { tmdbId: number }) {
               </p>
             )}
             <div className="mt-6 flex flex-wrap justify-center md:justify-start gap-3">
-              <Link
-                href={`/movies/${movie.tmdb_id}`}
-                className="flex-1 sm:flex-none text-center text-xs font-black uppercase tracking-widest border border-border hover:border-white rounded-xl px-6 py-3 inline-flex items-center justify-center gap-2 transition-all bg-white/5"
-              >
-                <ExternalLink size={14} /> View Public
-              </Link>
+
               <button
                 onClick={deleteMovie}
-                className="flex-1 sm:flex-none text-center text-xs font-black uppercase tracking-widest border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl px-6 py-3 inline-flex items-center justify-center gap-2 transition-all"
+                className="flex-1 sm:flex-none text-center text-xs font-black uppercase tracking-widest border border-brand/30 text-brand hover:bg-brand hover:text-white rounded-xl px-6 py-3 inline-flex items-center justify-center gap-2 transition-all"
               >
                 <Trash2 size={14} /> Delete
               </button>
