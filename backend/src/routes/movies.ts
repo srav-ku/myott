@@ -27,10 +27,9 @@ app.get('/', async (c) => {
       backdropPath: schema.movies.backdropPath,
       rating: schema.movies.rating,
       releaseDate: schema.movies.releaseDate,
+      updatedAt: schema.movies.updatedAt,
     })
     .from(schema.movies)
-    .innerJoin(schema.links, eq(schema.movies.id, schema.links.movieId))
-    .groupBy(schema.movies.id)
     .orderBy(desc(schema.movies.updatedAt))
     .limit(limit)
     .offset((page - 1) * limit);
@@ -38,13 +37,13 @@ app.get('/', async (c) => {
   return c.json({
     page,
     results: rows.map(m => ({
-      id: m.tmdbId, // Return TMDB ID as 'id' for discovery consistency
-      local_id: m.id,
+      id: m.id,
+      tmdb_id: m.tmdbId,
       media_type: 'movie',
       title: m.title,
       overview: m.overview,
-      poster_path: m.posterPath,
-      backdrop_path: m.backdropPath,
+      poster_url: tmdbImg(m.posterPath, 'w500'),
+      backdrop_url: tmdbImg(m.backdropPath, 'original'),
       vote_average: m.rating,
       release_date: m.releaseDate,
       in_db: true,
@@ -62,11 +61,6 @@ app.get('/:tmdbId', async (c) => {
     try {
       const detail = await tmdbFetch<any>(`/movie/${tmdbId}`, c.env.TMDB_API_KEY);
       
-      // LOG RAW TMDB DETAIL
-      console.log(`\n--- RAW TMDB MOVIE DETAIL [${tmdbId}] ---`);
-      console.log(JSON.stringify(detail, null, 2));
-      console.log('--- END RAW TMDB DETAIL ---\n');
-
       const [inserted] = await db.insert(schema.movies).values({
         tmdbId: detail.id,
         imdbId: detail.imdb_id || null,

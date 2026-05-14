@@ -12,7 +12,6 @@ app.get('/', async (c) => {
   const page = Math.max(1, Number(q.page) || 1);
   const limit = Math.min(100, Number(q.limit) || 20);
 
-  // Runtime rule: Local DB only
   const rows = await db
     .select({
       id: schema.tv.id,
@@ -23,6 +22,7 @@ app.get('/', async (c) => {
       backdropPath: schema.tv.backdropPath,
       rating: schema.tv.rating,
       firstAirDate: schema.tv.firstAirDate,
+      updatedAt: schema.tv.updatedAt,
     })
     .from(schema.tv)
     .orderBy(desc(schema.tv.updatedAt))
@@ -32,13 +32,13 @@ app.get('/', async (c) => {
   return c.json({
     page,
     results: rows.map(t => ({
-      id: t.tmdbId, // Return TMDB ID as 'id'
-      local_id: t.id,
+      id: t.id,
+      tmdb_id: t.tmdbId,
       media_type: 'tv',
       name: t.name,
       overview: t.overview,
-      poster_path: t.posterPath,
-      backdrop_path: t.backdropPath,
+      poster_url: tmdbImg(t.posterPath, 'w500'),
+      backdrop_url: tmdbImg(t.backdropPath, 'original'),
       vote_average: t.rating,
       first_air_date: t.firstAirDate,
       in_db: true,
@@ -56,14 +56,9 @@ app.get('/:tmdbId', async (c) => {
     try {
       const detail = await tmdbFetch<any>(`/tv/${tmdbId}`, c.env.TMDB_API_KEY);
       
-      // LOG RAW TMDB DETAIL
-      console.log(`\n--- RAW TMDB TV DETAIL [${tmdbId}] ---`);
-      console.log(JSON.stringify(detail, null, 2));
-      console.log('--- END RAW TMDB DETAIL ---\n');
-
       const [inserted] = await db.insert(schema.tv).values({
         tmdbId: detail.id,
-        imdbId: detail.external_ids?.imdb_id || null, // Note: external_ids requires append_to_response=external_ids
+        imdbId: detail.external_ids?.imdb_id || null,
         name: detail.name,
         overview: detail.overview || null,
         posterPath: detail.poster_path || null,
@@ -77,7 +72,6 @@ app.get('/:tmdbId', async (c) => {
       }).returning();
       series = inserted;
 
-      // Ingest all episodes automatically
       if (detail.seasons && Array.isArray(detail.seasons)) {
         for (const season of detail.seasons) {
           if (season.season_number > 0) {
@@ -112,40 +106,6 @@ app.get('/:tmdbId', async (c) => {
   }
 
   let episodes = await db.select().from(schema.episodes).where(eq(schema.episodes.tvId, series.id));
-
-  if (episodes.length === 0) {
-    try {
-      const detail = await tmdbFetch<any>(`/tv/${tmdbId}`, c.env.TMDB_API_KEY);
-      if (detail.seasons && Array.isArray(detail.seasons)) {
-        for (const season of detail.seasons) {
-          if (season.season_number > 0) {
-            try {
-              const seasonData = await tmdbFetch<any>(`/tv/${tmdbId}/season/${season.season_number}`, c.env.TMDB_API_KEY);
-              if (seasonData.episodes && Array.isArray(seasonData.episodes)) {
-                for (const ep of seasonData.episodes) {
-                  await db.insert(schema.episodes).values({
-                    tvId: series.id,
-                    seasonNumber: ep.season_number,
-                    episodeNumber: ep.episode_number,
-                    title: ep.name || null,
-                    overview: ep.overview || null,
-                    stillPath: ep.still_path || null,
-                    runtime: ep.runtime || null,
-                  }).onConflictDoNothing();
-                }
-              }
-            } catch (err) {
-              console.error(`Failed to fetch season ${season.season_number} for TV ${tmdbId}`, err);
-            }
-          }
-        }
-      }
-      // Re-fetch after ingestion
-      episodes = await db.select().from(schema.episodes).where(eq(schema.episodes.tvId, series.id));
-    } catch (err: any) {
-      console.error('Failed to ingest missing episodes for TV', err);
-    }
-  }
 
   return c.json({
     id: series.id,
