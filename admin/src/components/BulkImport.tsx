@@ -62,8 +62,8 @@ export default function BulkImport() {
 
   function downloadSample(type: 'movie' | 'tv') {
     const headers = type === 'movie'
-      ? 'tmdb_id,title,stream_url,quality,languages,type'
-      : 'season_number,episode_number,title,stream_url,quality,languages,type';
+      ? 'tmdb_id,stream_url,quality,languages,type'
+      : 'season_number,episode_number,stream_url,quality,languages,type';
     
     const blob = new Blob([headers], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);

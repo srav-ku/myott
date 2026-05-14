@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { sql, eq, inArray } from 'drizzle-orm';
+import { sql, eq, inArray, and } from 'drizzle-orm';
 import { schema } from '../db/schema';
 import { tmdbFetch } from '../lib/tmdb';
 
@@ -50,6 +50,111 @@ app.post('/ingest', async (c: any) => {
     return c.json({ success: true, message: `Ingested movie: ${detail.title}` });
   }
   return c.json({ error: 'Type not supported yet' }, 400);
+});
+
+// BULK IMPORT
+app.post('/import/movie', async (c: any) => {
+  const db = drizzle(c.env.DB, { schema });
+  const csvText = await c.req.text();
+  
+  if (!csvText.trim()) return c.json({ error: 'Empty CSV' }, 400);
+
+  const lines = csvText.split('\n').map((l: string) => l.trim()).filter(Boolean);
+  const headerLine = lines[0].toLowerCase();
+  
+  // Auto-detect if it's Tab-separated (TSV) or Comma-separated (CSV)
+  const separator = headerLine.includes('\t') ? '\t' : ',';
+  const headers = headerLine.split(separator).map((h: string) => h.trim());
+  
+  const tmdbIdx = headers.indexOf('tmdb_id');
+  const urlIdx = headers.indexOf('stream_url');
+  const qualIdx = headers.indexOf('quality');
+  const langIdx = headers.indexOf('languages');
+  const typeIdx = headers.indexOf('type');
+
+  if (tmdbIdx === -1 || urlIdx === -1) {
+    return c.json({ error: `Missing required columns: tmdb_id, stream_url. (Detected separator: ${separator === '\t' ? 'TAB' : 'COMMA'})` }, 400);
+  }
+
+  let added = 0;
+  let skipped = 0;
+  let failed = 0;
+  const errors: any[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const rowNum = i + 1;
+    // Simple CSV/TSV parser
+    const row = lines[i].split(separator).map((col: string) => col.trim());
+    if (row.length < 2) continue;
+
+    try {
+      const tmdbId = Number(row[tmdbIdx]);
+      const url = row[urlIdx];
+      const quality = qualIdx !== -1 && row[qualIdx] ? row[qualIdx] : '1080p';
+      const type = typeIdx !== -1 && row[typeIdx] ? row[typeIdx].toLowerCase() : 'direct';
+      const langStr = langIdx !== -1 ? row[langIdx] : '';
+      const languages = langStr ? langStr.split('|').map((l: string) => l.trim()).filter(Boolean) : [];
+
+      if (!tmdbId || isNaN(tmdbId)) throw new Error('Invalid TMDB ID');
+      if (!url) throw new Error('Missing URL');
+
+      // Check if movie exists
+      let [movie] = await db.select().from(schema.movies).where(eq(schema.movies.tmdbId, tmdbId)).limit(1);
+      
+      if (!movie) {
+        // Auto-ingest missing movie
+        const detail = await tmdbFetch<any>(`/movie/${tmdbId}`, c.env.TMDB_API_KEY);
+        if (!detail.id) throw new Error('Movie not found on TMDB');
+        
+        const [inserted] = await db.insert(schema.movies).values({
+          tmdbId: detail.id,
+          imdbId: detail.imdb_id || null,
+          title: detail.title,
+          overview: detail.overview || null,
+          posterPath: detail.poster_path || null,
+          backdropPath: detail.backdrop_path || null,
+          rating: detail.vote_average || null,
+          releaseDate: detail.release_date || null,
+          releaseYear: detail.release_date ? Number(detail.release_date.slice(0, 4)) : null,
+          runtime: detail.runtime || null,
+          genres: (detail.genres || []).map((g: any) => g.name),
+        }).returning();
+        movie = inserted;
+      }
+
+      // Check for duplicate link
+      const existing = await db.select().from(schema.links).where(and(
+        eq(schema.links.movieId, movie.id),
+        eq(schema.links.url, url)
+      )).limit(1);
+
+      if (existing.length > 0) {
+        skipped++;
+        continue;
+      }
+
+      // Add new languages
+      for (const l of languages) {
+        await db.insert(schema.languages).values({ name: l }).onConflictDoNothing();
+      }
+
+      // Insert link
+      await db.insert(schema.links).values({
+        movieId: movie.id,
+        url,
+        quality: quality as any,
+        type: type as any,
+        languages,
+      });
+      
+      added++;
+    } catch (err: any) {
+      failed++;
+      errors.push({ row: rowNum, reason: err.message || 'Unknown error' });
+    }
+  }
+
+  return c.json({ success: true, added, skipped, failed, errors });
 });
 
 // MOVIES
