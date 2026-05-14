@@ -13,8 +13,6 @@ app.get('/', async (c: any) => {
   const authHeader = c.req.header('Authorization');
   let isAdmin = false;
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    // In a real app, you'd verify the Firebase token here. 
-    // For now, we trust the presence of a Bearer token as an "authorized" call from the admin portal.
     isAdmin = true; 
   }
 
@@ -25,7 +23,32 @@ app.get('/', async (c: any) => {
   const qTrim = q.trim();
   if (!qTrim) return c.json({ results: [] });
 
-  const likeExpr = `%${qTrim}%`;
+  let queryText = qTrim;
+  let year: string | null = null;
+  let directId: string | null = null;
+  let directType: 'movie' | 'tv' | null = null;
+
+  // 1. Detect TMDB URL
+  const urlMatch = qTrim.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
+  if (urlMatch) {
+    directType = urlMatch[1] as 'movie' | 'tv';
+    directId = urlMatch[2];
+  } 
+  // 2. Detect pure ID
+  else if (/^\d+$/.test(qTrim) && qTrim.length > 3) {
+    directId = qTrim;
+    directType = (type === 'tv' ? 'tv' : 'movie');
+  }
+  // 3. Detect Title + Year (e.g. "Movie 2024")
+  else {
+    const yearMatch = qTrim.match(/(.+)\s+(\d{4})$/);
+    if (yearMatch) {
+      queryText = yearMatch[1].trim();
+      year = yearMatch[2];
+    }
+  }
+
+  const likeExpr = `%${queryText}%`;
 
   let dbMovies: any[] = [];
   if (type !== 'tv') {
@@ -43,21 +66,32 @@ app.get('/', async (c: any) => {
   let tmdbTotal = { total_pages: 0, total_results: 0, page };
   
   if (qTrim && isAdmin) {
-    const tmdbPath = type === 'multi' ? '/search/multi' : type === 'movie' ? '/search/movie' : '/search/tv';
     try {
-      const data = await tmdbFetch<any>(tmdbPath, c.env.TMDB_API_KEY, { 
-        query: qTrim, 
-        page, 
-        include_adult: false 
-      });
+      if (directId && directType) {
+        // Direct ID lookup
+        const detail = await tmdbFetch<any>(`/${directType}/${directId}`, c.env.TMDB_API_KEY);
+        if (detail.id) {
+          tmdbResults = [detail];
+          tmdbTotal = { total_pages: 1, total_results: 1, page: 1 };
+        }
+      } else {
+        // Regular search or Year-filtered search
+        const tmdbPath = type === 'multi' ? '/search/multi' : type === 'movie' ? '/search/movie' : '/search/tv';
+        const params: any = { 
+          query: queryText, 
+          page, 
+          include_adult: false 
+        };
+        
+        if (year) {
+          if (type === 'tv') params.first_air_date_year = year;
+          else params.primary_release_year = year;
+        }
 
-      // LOG RAW TMDB DATA
-      console.log('--- RAW TMDB DATA ---');
-      console.log(JSON.stringify(data, null, 2));
-      console.log('--- END RAW TMDB DATA ---');
-
-      tmdbResults = data.results.filter((r: any) => !r.media_type || r.media_type !== 'person');
-      tmdbTotal = { total_pages: data.total_pages, total_results: data.total_results, page: data.page };
+        const data = await tmdbFetch<any>(tmdbPath, c.env.TMDB_API_KEY, params);
+        tmdbResults = data.results.filter((r: any) => !r.media_type || r.media_type !== 'person');
+        tmdbTotal = { total_pages: data.total_pages, total_results: data.total_results, page: data.page };
+      }
     } catch (err) {
       console.error('[search] TMDB failed:', err);
     }
@@ -111,7 +145,6 @@ app.get('/', async (c: any) => {
         rating: r.vote_average,
         release_date: r.release_date ?? r.first_air_date ?? null,
         in_db: false,
-        // Include raw TMDB fields for richness
         popularity: r.popularity,
         vote_count: r.vote_count,
         original_language: r.original_language,
@@ -124,6 +157,5 @@ app.get('/', async (c: any) => {
     results: [...dbItems, ...tmdbItems],
   });
 });
-
 
 export default app;
